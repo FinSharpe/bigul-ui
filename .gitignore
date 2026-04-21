@@ -29,3 +29,4 @@ dist-ssr
 .next/
 next-env.d.ts
 tsconfig.tsbuildinfo
+.env*
