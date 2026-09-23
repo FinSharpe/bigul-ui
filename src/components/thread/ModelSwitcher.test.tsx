@@ -35,19 +35,26 @@ describe("<ModelSwitcher />", () => {
 
     expect(optionLabels).toEqual(
       expect.arrayContaining([
+        "Gpt 5.5",
         "Gpt 5.4",
         "Gpt 5.4 Mini",
         "Gpt 5.4 Nano",
         "Gpt 5.2",
         "Gpt 5.1",
         "Gpt 5",
-        "Gemini 3",
+        "Gemini 3.5 Flash",
+        "Gemini 3.1 Pro",
         "Gemini Flash",
         "Gemini 2.5 Pro",
         "Gemini 2.5 Flash",
+        "Opus 5",
+        "Sonnet 5",
         "Sonnet 4.5",
         "Sonnet 4.6",
         "Haiku 4.5",
+        "Deepseek V4 Pro",
+        "Deepseek V4 Flash",
+        "Deepseek V4.1 Flash",
       ]),
     );
     expect(optionLabels).toHaveLength(Object.keys(PlannerModels).length);
@@ -69,7 +76,9 @@ describe("<ModelSwitcher />", () => {
 
     expect(onValueChange).toHaveBeenCalledTimes(1);
     expect(onValueChange).toHaveBeenCalledWith(PlannerModels.SONNET_4_6);
-    expect(onValueChange).toHaveBeenCalledWith("anthropic:claude-sonnet-4-6");
+    expect(onValueChange).toHaveBeenCalledWith(
+      "openrouter:anthropic/claude-sonnet-4.6",
+    );
   });
 
   it("updates the displayed label when the controlled value changes", () => {
