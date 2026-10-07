@@ -6,14 +6,18 @@
 // thread/index.tsx and falls back to the default. Display names come from the
 // key via getModelDisplayName ("GPT_5_4" -> "Gpt 5.4").
 export enum PlannerModels {
-  GPT_5_5 = "openrouter:openai/gpt-5.5",
+  GPT_5_6_SOL = "openrouter:openai/gpt-5.6-sol",
+  GPT_5_6_TERRA = "openrouter:openai/gpt-5.6-terra",
+  GPT_5_6_LUNA = "openrouter:openai/gpt-5.6-luna",
+  GPT_5_5 ="openrouter:openai/gpt-5.5",
   GPT_5_4 = "openrouter:openai/gpt-5.4",
   GPT_5_4_MINI = "openrouter:openai/gpt-5.4-mini",
   GPT_5_4_NANO = "openrouter:openai/gpt-5.4-nano",
   GPT_5_2 = "openrouter:openai/gpt-5.2",
   GPT_5_1 = "openrouter:openai/gpt-5.1",
   GPT_5 = "openrouter:openai/gpt-5",
-  GEMINI_3_5_FLASH = "openrouter:google/gemini-3.5-flash",
+  GEMINI_3_8_FLASH = "openrouter:google/gemini-3.8-flash",
+  GEMINI_3_5_FLASH ="openrouter:google/gemini-3.5-flash",
   GEMINI_3_1_PRO = "openrouter:google/gemini-3.1-pro-preview",
   GEMINI_FLASH = "openrouter:google/gemini-3-flash-preview",
   GEMINI_2_5_PRO = "openrouter:google/gemini-2.5-pro",
