@@ -35,6 +35,9 @@ describe("<ModelSwitcher />", () => {
 
     expect(optionLabels).toEqual(
       expect.arrayContaining([
+        "Gpt 5.6 Sol",
+        "Gpt 5.6 Terra",
+        "Gpt 5.6 Luna",
         "Gpt 5.5",
         "Gpt 5.4",
         "Gpt 5.4 Mini",
@@ -42,6 +45,7 @@ describe("<ModelSwitcher />", () => {
         "Gpt 5.2",
         "Gpt 5.1",
         "Gpt 5",
+        "Gemini 3.8 Flash",
         "Gemini 3.5 Flash",
         "Gemini 3.1 Pro",
         "Gemini Flash",
