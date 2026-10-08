@@ -18,7 +18,9 @@ describe("getModelDisplayName", () => {
 
   it("rejoins a version token split by startCase", () => {
     expect(getModelDisplayName("DEEPSEEK_V4_PRO")).toBe("Deepseek V4 Pro");
-    expect(getModelDisplayName("DEEPSEEK_V4_1_FLASH")).toBe("Deepseek V4.1 Flash");
+    expect(getModelDisplayName("DEEPSEEK_V4_1_FLASH")).toBe(
+      "Deepseek V4.1 Flash",
+    );
   });
 
   it("handles empty strings", () => {
