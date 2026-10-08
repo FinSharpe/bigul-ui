@@ -13,6 +13,7 @@ import { MarkdownText } from "../markdown-text";
 import { LoadExternalComponent } from "@langchain/langgraph-sdk/react-ui";
 import { cn } from "@/lib/utils";
 import { ToolCalls, ToolResult } from "./tool-calls";
+import { getViewCallIds } from "./mcp-app-payload";
 import { MessageContentComplex } from "@langchain/core/messages";
 import { Fragment } from "react/jsx-runtime";
 import { useMemo } from "react";
@@ -80,7 +81,7 @@ interface InterruptProps {
   hasNoAIOrToolMessages: boolean;
 }
 
-function Interrupt({
+export function Interrupt({
   interrupt,
   isLastMessage,
   hasNoAIOrToolMessages,
@@ -144,6 +145,17 @@ export function AssistantMessage({
     }
     return map;
   }, [thread.messages]);
+  // A call whose result carries an interactive view is drawn as that view, at
+  // the result's place in the thread (see <Thread>) — not as a call/result
+  // accordion as well. Until the result arrives the call is listed as usual.
+  // Asked of every result the call has, not of `toolResponses`: that map keeps
+  // only the latest, and a call answered twice can have its view on the first.
+  const viewCallIds = useMemo(
+    () => getViewCallIds(thread.messages),
+    [thread.messages],
+  );
+  const withoutViewCalls = (toolCalls: AIMessage["tool_calls"]) =>
+    toolCalls?.filter((tc) => !(tc.id && viewCallIds.has(tc.id)));
 
   const hasToolCalls =
     message &&
@@ -186,19 +198,19 @@ export function AssistantMessage({
               <>
                 {(hasToolCalls && toolCallsHaveContents && (
                   <ToolCalls
-                    toolCalls={message.tool_calls}
+                    toolCalls={withoutViewCalls(message.tool_calls)}
                     responses={toolResponses}
                   />
                 )) ||
                   (hasAnthropicToolCalls && (
                     <ToolCalls
-                      toolCalls={anthropicStreamedToolCalls}
+                      toolCalls={withoutViewCalls(anthropicStreamedToolCalls)}
                       responses={toolResponses}
                     />
                   )) ||
                   (hasToolCalls && (
                     <ToolCalls
-                      toolCalls={message.tool_calls}
+                      toolCalls={withoutViewCalls(message.tool_calls)}
                       responses={toolResponses}
                     />
                   ))}
