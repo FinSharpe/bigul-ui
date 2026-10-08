@@ -6,8 +6,14 @@ import { useStreamContext } from "@/providers/Stream";
 import { useState, FormEvent } from "react";
 import { Button } from "../ui/button";
 import { Checkpoint, Message } from "@langchain/langgraph-sdk";
-import { AssistantMessage, AssistantMessageLoading } from "./messages/ai";
+import {
+  AssistantMessage,
+  AssistantMessageLoading,
+  Interrupt,
+} from "./messages/ai";
 import { HumanMessage } from "./messages/human";
+import { McpAppToolMessage } from "./messages/mcp-app";
+import { getMcpAppPayload } from "./messages/mcp-app-payload";
 import {
   DO_NOT_RENDER_ID_PREFIX,
   ensureToolCallsHaveResponses,
@@ -339,17 +345,32 @@ export function Thread() {
   );
 
   const absorbedToolMessageIds = new Set<string>();
+  const calledToolCallIds = new Set<string>();
   for (const m of messages) {
     if (m.type === "ai" && "tool_calls" in m && Array.isArray(m.tool_calls)) {
       for (const tc of m.tool_calls) {
         if (!tc.id) continue;
+        calledToolCallIds.add(tc.id);
         const resp = messages.find(
           (r) => r.type === "tool" && r.tool_call_id === tc.id,
         );
-        if (resp?.id) absorbedToolMessageIds.add(resp.id);
+        // A result carrying an interactive view is not folded into its call's
+        // accordion: it is drawn below, as that view, where it sits in the
+        // thread.
+        if (resp?.id && !getMcpAppPayload(resp)) {
+          absorbedToolMessageIds.add(resp.id);
+        }
       }
     }
   }
+  // A tool result no call in the thread claims is a row of its own, and as
+  // the last message that row carries the pending interrupt. A view takes the
+  // generic row's place there, so it takes the interrupt with it.
+  const lastMessage = messages[messages.length - 1];
+  const interruptFollowsView =
+    lastMessage?.type === "tool" &&
+    !!getMcpAppPayload(lastMessage) &&
+    !calledToolCallIds.has(lastMessage.tool_call_id);
 
   return (
     <div className="flex h-screen w-full overflow-hidden">
@@ -517,6 +538,12 @@ export function Thread() {
                           message={message}
                           isLoading={isLoading}
                         />
+                      ) : message.type === "tool" &&
+                        getMcpAppPayload(message) ? (
+                        <McpAppToolMessage
+                          key={message.id || `${message.type}-${index}`}
+                          message={message}
+                        />
                       ) : (
                         <AssistantMessage
                           key={message.id || `${message.type}-${index}`}
@@ -526,6 +553,13 @@ export function Thread() {
                         />
                       ),
                     )}
+                  {interruptFollowsView && (
+                    <Interrupt
+                      interrupt={stream.interrupt}
+                      isLastMessage
+                      hasNoAIOrToolMessages={false}
+                    />
+                  )}
                   {/* Special rendering case where there are no AI/tool messages, but there is an interrupt.
                     We need to render it outside of the messages list, since there are no messages to render */}
                   {hasNoAIOrToolMessages && !!stream.interrupt && (
