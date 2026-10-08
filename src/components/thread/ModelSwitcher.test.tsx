@@ -35,10 +35,9 @@ describe("<ModelSwitcher />", () => {
 
     expect(optionLabels).toEqual(
       expect.arrayContaining([
-        "Gpt 5.6 Sol",
-        "Gpt 5.6 Terra",
-        "Gpt 5.6 Luna",
-        "Gpt 5.5",
+        "Deepseek V4 Pro",
+        "Deepseek V4 Flash",
+        "Deepseek V4.1 Flash",
         "Gpt 5.4",
         "Gpt 5.4 Mini",
         "Gpt 5.4 Nano",
@@ -51,17 +50,13 @@ describe("<ModelSwitcher />", () => {
         "Gemini Flash",
         "Gemini 2.5 Pro",
         "Gemini 2.5 Flash",
-        "Opus 5",
-        "Sonnet 5",
         "Sonnet 4.5",
         "Sonnet 4.6",
         "Haiku 4.5",
-        "Deepseek V4 Pro",
-        "Deepseek V4 Flash",
-        "Deepseek V4.1 Flash",
       ]),
     );
-    expect(optionLabels).toHaveLength(Object.keys(PlannerModels).length);
+    expect(optionLabels).toHaveLength(Object.keys(PlannerModels).length + 1);
+    expect(optionLabels[0]).toBe("Auto");
   });
 
   it("fires onValueChange with the provider:model enum string when a user picks an option", async () => {
@@ -76,7 +71,9 @@ describe("<ModelSwitcher />", () => {
 
     await user.click(screen.getByRole("combobox", { name: /select model/i }));
     const listbox = await screen.findByRole("listbox");
-    await user.click(within(listbox).getByRole("option", { name: "Sonnet 4.6" }));
+    await user.click(
+      within(listbox).getByRole("option", { name: "Sonnet 4.6" }),
+    );
 
     expect(onValueChange).toHaveBeenCalledTimes(1);
     expect(onValueChange).toHaveBeenCalledWith(PlannerModels.SONNET_4_6);

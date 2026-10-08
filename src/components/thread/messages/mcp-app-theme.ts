@@ -35,11 +35,16 @@ const STAMP_AFTER = [
  * case ahead of any guest script. Anything but light/dark is dropped, so no
  * caller string ever reaches the document.
  */
-export function stampGuestTheme(html: string, theme: HostTheme): string {
+export function stampGuestTheme(
+  html: string,
+  theme: HostTheme,
+  headContent = "",
+): string {
   if (theme !== "light" && theme !== "dark") return html;
   const stamp =
     `<meta name="color-scheme" content="${theme}">` +
-    `<script>document.documentElement.setAttribute("data-theme","${theme}");</script>`;
+    `<script>document.documentElement.setAttribute("data-theme","${theme}");</script>` +
+    headContent;
   for (const tag of STAMP_AFTER) {
     const at = tag.exec(html)?.[0].length;
     if (at !== undefined) return html.slice(0, at) + stamp + html.slice(at);

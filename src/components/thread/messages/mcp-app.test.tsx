@@ -885,6 +885,57 @@ describe("<McpAppToolMessage /> while the view is loading", () => {
   });
 });
 
+describe("<McpAppToolMessage /> report recovery", () => {
+  it("offers a reload when a report does not load and accepts the new handshake", () => {
+    vi.useFakeTimers();
+    try {
+      render(<McpAppToolMessage message={viewMessage()} />);
+      const first = frame();
+      act(() => vi.advanceTimersByTime(15000));
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "The report did not open",
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Reload report" }));
+      const reloaded = frame();
+      expect(reloaded).not.toBe(first);
+      const posted = hostPosts(reloaded);
+      guestSends(reloaded, JSON.stringify(initialize()));
+      guestSends(reloaded, JSON.stringify(initialized));
+      expect(posted).toHaveBeenCalledWith(
+        expect.objectContaining({
+          method: "ui/notifications/tool-result",
+          params: { structuredContent: STOCK },
+        }),
+        "*",
+      );
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+      expect(screen.queryByText("Loading")).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not fail a silent document that loaded successfully", () => {
+    vi.useFakeTimers();
+    try {
+      render(
+        <McpAppToolMessage
+          message={viewMessage({ html: "<p>A static report.</p>" })}
+        />,
+      );
+      fireEvent.load(frame());
+      act(() => vi.advanceTimersByTime(15000));
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Reload report" }),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByText("Loading")).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
 describe("<McpAppToolMessage /> white-labelling", () => {
   it("ships no vendor name in the host's identity or its chrome", () => {
     const { container } = render(<McpAppToolMessage message={viewMessage()} />);

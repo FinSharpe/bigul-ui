@@ -1,5 +1,5 @@
 import { beforeAll, beforeEach, describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import type { Message, ToolMessage } from "@langchain/langgraph-sdk";
 import { ArtifactProvider } from "./artifact";
@@ -13,6 +13,20 @@ const stream = vi.hoisted(() => ({ current: undefined as unknown }));
 
 vi.mock("@/providers/Stream", () => ({
   useStreamContext: () => stream.current,
+}));
+vi.mock("@/providers/Thread", () => ({
+  useThreads: () => ({ threads: [] }),
+}));
+vi.mock("@/hooks/use-chat-models", () => ({
+  useChatModels: () => ({
+    value: "auto",
+    select: vi.fn(),
+    options: [],
+    unavailable: false,
+    supportsImages: true,
+    submissionOptions: () => ({}),
+    cancelPendingSelection: vi.fn(),
+  }),
 }));
 vi.mock("./history", () => ({ default: () => null }));
 vi.mock("use-stick-to-bottom", () => ({
@@ -28,6 +42,14 @@ vi.mock("use-stick-to-bottom", () => ({
 }));
 
 beforeAll(() => {
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
   // jsdom has no matchMedia; <Thread> asks it whether the screen is large and
   // framer-motion (through the legacy listener API) whether to reduce motion.
   window.matchMedia = ((query: string) => ({
@@ -105,6 +127,8 @@ function showThread(
     messages,
     values: { messages },
     isLoading,
+    runStatus: isLoading ? "streaming" : "idle",
+    runTerminations: {},
     error: undefined,
     interrupt,
     getMessagesMetadata: () => undefined,
@@ -127,8 +151,9 @@ function showThread(
 }
 
 // What the generic tool UI puts on screen.
-const SCAN = "Scanning the market"; // curated label for `scan`
-const REPORT_CALL = "Render Stock Report"; // fallback label for the report tool
+const SCAN = "Scan the market";
+const REPORT_CALL = "Build the stock report";
+const REPORT_RUNNING = "Building the stock report";
 const accordions = () =>
   screen.queryAllByRole("button", { name: /expand tool call/i });
 const view = () => screen.queryByTitle("Stock Report");
@@ -140,15 +165,21 @@ const fresh = (messages: Message[]): Message[] =>
 
 beforeEach(() => {
   stream.current = undefined;
+  vi.stubGlobal(
+    "fetch",
+    vi
+      .fn()
+      .mockImplementation(async () => new Response(new Uint8Array([0, 1, 2]))),
+  );
 });
 
 describe("a report view in the thread", () => {
   const thread = [question, calls, scanResult, reportWithView, answer()];
 
-  it("is drawn inline, where its tool result sits: after the calls, before the answer", () => {
+  it("is drawn inline, where its tool result sits: after the calls, before the answer", async () => {
     render(showThread(thread));
 
-    const frame = view();
+    const frame = await screen.findByTitle("Stock Report");
     expect(frame).toBeInstanceOf(HTMLIFrameElement);
     expect(frame).toHaveAttribute("sandbox", "allow-scripts");
     expect(follows(frame!, screen.getByText(SCAN))).toBe(true);
@@ -157,29 +188,29 @@ describe("a report view in the thread", () => {
     );
   });
 
-  it("replaces the generic call/result UI for that call only", () => {
+  it("keeps both originating calls inspectable beside the report", async () => {
     render(showThread(thread));
 
-    // The ordinary call keeps its accordion…
     expect(screen.getByText(SCAN)).toBeInTheDocument();
-    expect(screen.getByText("Done")).toBeInTheDocument();
-    // …the report's call does not get one, and its result is not dumped.
-    expect(screen.queryByText(REPORT_CALL)).not.toBeInTheDocument();
-    expect(accordions()).toHaveLength(1);
+    expect(screen.getByText(REPORT_CALL)).toBeInTheDocument();
+    expect(accordions()).toHaveLength(2);
+    expect(
+      screen.queryByText("Infosys summary for the model."),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText(/Tool Result/)).not.toBeInTheDocument();
-    expect(view()).toBeInTheDocument();
+    expect(await screen.findByTitle("Stock Report")).toBeInTheDocument();
   });
 
-  it("is still drawn with hideToolCalls on, which hides only the tool detail", () => {
+  it("is still drawn with hideToolCalls on, which hides only the tool detail", async () => {
     render(showThread(thread, { hideToolCalls: true }));
 
-    expect(view()).toBeInTheDocument();
+    expect(await screen.findByTitle("Stock Report")).toBeInTheDocument();
     expect(screen.queryByText(SCAN)).not.toBeInTheDocument();
     expect(accordions()).toHaveLength(0);
     expect(screen.getByText("Infosys looks steady.")).toBeInTheDocument();
   });
 
-  it("leaves an AI message with nothing but a report call without any tool UI", () => {
+  it("keeps a single report call inspectable without duplicating its result", async () => {
     const onlyReport: Message = {
       type: "ai",
       id: "ai-calls",
@@ -190,12 +221,12 @@ describe("a report view in the thread", () => {
     };
     render(showThread([question, onlyReport, reportWithView, answer()]));
 
-    expect(view()).toBeInTheDocument();
-    expect(accordions()).toHaveLength(0);
+    expect(await screen.findByTitle("Stock Report")).toBeInTheDocument();
+    expect(accordions()).toHaveLength(1);
     expect(screen.queryByText(/Tool Result/)).not.toBeInTheDocument();
   });
 
-  it("draws each of several reports, in order, each from its own result", () => {
+  it("draws each of several reports, in order, each from its own result", async () => {
     const twoCalls: Message = {
       type: "ai",
       id: "ai-calls",
@@ -216,26 +247,49 @@ describe("a report view in the thread", () => {
     };
     render(showThread([question, twoCalls, reportWithView, fundResult]));
 
-    const stock = screen.getByTitle("Stock Report");
-    const fund = screen.getByTitle("MF Report");
+    const stock = await screen.findByTitle("Stock Report");
+    const fund = await screen.findByTitle("MF Report");
     expect(follows(fund, stock)).toBe(true);
-    expect(accordions()).toHaveLength(0);
+    expect(accordions()).toHaveLength(2);
   });
 
-  it("is drawn for a result whose call the thread does not hold", () => {
+  it("keeps a report beside its call before later sibling calls", async () => {
+    const threeCalls: Message = {
+      ...calls,
+      tool_calls: [
+        { id: "call_report", name: "render_stock_report", args: {} },
+        { id: "call_scan", name: "scan", args: {} },
+        { id: "call_quote", name: "get_stock_quote", args: {} },
+      ],
+    };
+    render(
+      showThread([question, threeCalls, reportWithView, scanResult, answer()]),
+    );
+    const reportCall = screen.getByRole("button", {
+      name: `Expand tool call: ${REPORT_CALL}`,
+    });
+    expect(follows(await screen.findByTitle("Stock Report"), reportCall)).toBe(
+      true,
+    );
+    expect(follows(screen.getByText(SCAN), view()!)).toBe(true);
+    expect(accordions()).toHaveLength(3);
+    expect(screen.queryByText("Retrieving data")).not.toBeInTheDocument();
+  });
+
+  it("is drawn for a result whose call the thread does not hold", async () => {
     // e.g. a thread restored without the calling message.
     const orphan = [question, reportWithView, answer()];
 
     const { unmount } = render(showThread(orphan));
-    expect(view()).toBeInTheDocument();
+    expect(await screen.findByTitle("Stock Report")).toBeInTheDocument();
     expect(screen.queryByText(/Tool Result/)).not.toBeInTheDocument();
     unmount();
 
     render(showThread(orphan, { hideToolCalls: true }));
-    expect(view()).toBeInTheDocument();
+    expect(await screen.findByTitle("Stock Report")).toBeInTheDocument();
   });
 
-  it("suppresses the accordion for a call an Anthropic model streamed as a content block", () => {
+  it("pairs calls streamed as Anthropic content blocks with their reports", async () => {
     const streamedCalls = {
       type: "ai",
       id: "ai-calls",
@@ -253,9 +307,10 @@ describe("a report view in the thread", () => {
     } as unknown as Message;
     render(showThread([question, streamedCalls, scanResult, reportWithView]));
 
-    expect(view()).toBeInTheDocument();
+    expect(await screen.findByTitle("Stock Report")).toBeInTheDocument();
     expect(screen.getByText(SCAN)).toBeInTheDocument();
-    expect(screen.queryByText(REPORT_CALL)).not.toBeInTheDocument();
+    expect(screen.getByText(REPORT_CALL)).toBeInTheDocument();
+    expect(accordions()).toHaveLength(2);
   });
 
   describe("for a call that was answered twice", () => {
@@ -292,13 +347,13 @@ describe("a report view in the thread", () => {
         [placeholder, reportWithView, answer()],
       ],
     ])(
-      "shows the view and not the call's accordion as well: %s",
-      (_l, results) => {
+      "shows the real view and inspectable call, ignoring a repair placeholder: %s",
+      async (_l, results) => {
         render(showThread([question, onlyReport, ...results, ...followUp]));
 
-        expect(view()).toBeInTheDocument();
-        expect(screen.queryByText(REPORT_CALL)).not.toBeInTheDocument();
-        expect(accordions()).toHaveLength(0);
+        expect(await screen.findByTitle("Stock Report")).toBeInTheDocument();
+        expect(screen.getByText(REPORT_CALL)).toBeInTheDocument();
+        expect(accordions()).toHaveLength(1);
         expect(
           screen.queryByText("Successfully handled tool call."),
         ).not.toBeInTheDocument();
@@ -309,11 +364,45 @@ describe("a report view in the thread", () => {
 });
 
 describe("a report view while the run is streaming", () => {
-  it("lists the call as running, then swaps it for the view when the result lands", () => {
+  it("preserves opened request and response details when its report completes", async () => {
+    const onlyReport: Message = {
+      ...calls,
+      tool_calls: [
+        {
+          id: "call_report",
+          name: "render_stock_report",
+          args: { symbol: "INFY" },
+        },
+      ],
+    };
+    const { rerender } = render(
+      showThread([question, onlyReport], { isLoading: true }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: `Expand tool call: ${REPORT_RUNNING}`,
+      }),
+    );
+    expect(screen.getByText("Request parameters")).toBeInTheDocument();
+    rerender(
+      showThread(fresh([question, onlyReport, reportWithView, answer()])),
+    );
+    expect(
+      screen.getByRole("button", {
+        name: `Collapse tool call: ${REPORT_CALL}`,
+      }),
+    ).toHaveAttribute("aria-expanded", "true");
+    expect(
+      screen.getByText("Infosys summary for the model."),
+    ).toBeInTheDocument();
+    expect(await screen.findByTitle("Stock Report")).toBeInTheDocument();
+  });
+
+  it("settles the originating call and adds its report when the result lands", async () => {
     const { rerender } = render(
       showThread([question, calls, scanResult], { isLoading: true }),
     );
-    expect(screen.getByText(REPORT_CALL)).toBeInTheDocument();
+    expect(screen.getByText(REPORT_RUNNING)).toBeInTheDocument();
     expect(screen.getByText("Running")).toBeInTheDocument();
     expect(view()).not.toBeInTheDocument();
 
@@ -322,12 +411,12 @@ describe("a report view while the run is streaming", () => {
         isLoading: true,
       }),
     );
-    expect(screen.queryByText(REPORT_CALL)).not.toBeInTheDocument();
+    expect(screen.getByText(REPORT_CALL)).toBeInTheDocument();
     expect(screen.queryByText("Running")).not.toBeInTheDocument();
-    expect(view()).toBeInTheDocument();
+    expect(await screen.findByTitle("Stock Report")).toBeInTheDocument();
   });
 
-  it("keeps the same frame, document untouched, as the answer streams in after it", () => {
+  it("keeps the same frame, document untouched, as the answer streams in after it", async () => {
     const upTo = (text?: string) =>
       fresh([
         question,
@@ -338,7 +427,12 @@ describe("a report view while the run is streaming", () => {
       ]);
 
     const { rerender } = render(showThread(upTo(), { isLoading: true }));
-    const frame = view() as HTMLIFrameElement;
+    const frame = (await screen.findByTitle(
+      "Stock Report",
+    )) as HTMLIFrameElement;
+    await waitFor(() =>
+      expect(frame.srcdoc).toContain("<title>Stock Report</title>"),
+    );
     const loaded = frame.srcdoc;
     expect(loaded).toContain("<title>Stock Report</title>");
 
@@ -355,11 +449,7 @@ describe("a report view while the run is streaming", () => {
     expect(screen.getByText("Infosys looks steady.")).toBeInTheDocument();
   });
 
-  it("keeps the same frame when a row above it goes away", () => {
-    // A model that streams its calls as content blocks fills in `tool_calls`
-    // only when the message completes. Until then an ordinary result is a row
-    // of its own above the view; afterwards it is folded into its call's
-    // accordion, and every row below it moves up one place.
+  it("keeps the same frame when content-block calls become completed tool_calls", async () => {
     const streamedCalls = {
       type: "ai",
       id: "ai-calls",
@@ -380,9 +470,15 @@ describe("a report view while the run is streaming", () => {
         isLoading: true,
       }),
     );
-    const frame = view() as HTMLIFrameElement;
+    const frame = (await screen.findByTitle(
+      "Stock Report",
+    )) as HTMLIFrameElement;
+    await waitFor(() =>
+      expect(frame.srcdoc).toContain("<title>Stock Report</title>"),
+    );
     const loaded = frame.srcdoc;
-    expect(screen.getByText(/Tool Result/)).toBeInTheDocument();
+    expect(screen.queryByText(/Tool Result/)).not.toBeInTheDocument();
+    expect(accordions()).toHaveLength(2);
 
     rerender(
       showThread(
@@ -394,7 +490,7 @@ describe("a report view while the run is streaming", () => {
     expect(frame.srcdoc).toBe(loaded);
   });
 
-  it("draws another message's report in a frame of its own, not the one already there", () => {
+  it("draws another message's report in a frame of its own, not the one already there", async () => {
     // Every stock report is the same document; only the data differs. A frame
     // kept on for a different message would keep the document it has loaded.
     const sameShape = (tag: string, symbol: string): Message[] => [
@@ -424,13 +520,15 @@ describe("a report view while the run is streaming", () => {
     ];
 
     const { rerender } = render(showThread(sameShape("a", "INFY")));
-    const first = view();
+    const first = await screen.findByTitle("Stock Report");
     expect(first).toBeInstanceOf(HTMLIFrameElement);
 
     // The same positions, the same document — a different message.
     rerender(showThread(sameShape("b", "TCS")));
 
-    expect(view()).toBeInstanceOf(HTMLIFrameElement);
+    expect(await screen.findByTitle("Stock Report")).toBeInstanceOf(
+      HTMLIFrameElement,
+    );
     expect(view()).not.toBe(first);
   });
 });
@@ -438,7 +536,7 @@ describe("a report view while the run is streaming", () => {
 describe("tool messages without a usable view", () => {
   const ordinary = [question, calls, scanResult, reportResult(), answer()];
 
-  it("render as before: every call in its accordion, no frame", () => {
+  it("render as before: every call in its accordion, no frame", async () => {
     render(showThread(ordinary));
 
     expect(screen.getByText(SCAN)).toBeInTheDocument();
@@ -449,7 +547,7 @@ describe("tool messages without a usable view", () => {
     expect(screen.queryByText(/Tool Result/)).not.toBeInTheDocument();
   });
 
-  it("are hidden as before with hideToolCalls on", () => {
+  it("are hidden as before with hideToolCalls on", async () => {
     render(showThread(ordinary, { hideToolCalls: true }));
 
     expect(accordions()).toHaveLength(0);
@@ -457,22 +555,23 @@ describe("tool messages without a usable view", () => {
     expect(screen.getByText("Infosys looks steady.")).toBeInTheDocument();
   });
 
-  it("render an uncalled result as the generic tool result, as before", () => {
+  it("keeps an uncalled result inspectable by its friendly tool name", async () => {
     const orphan = [question, reportResult(), answer()];
 
     const { unmount } = render(showThread(orphan));
-    expect(screen.getByText(/Tool Result/)).toBeInTheDocument();
+    expect(screen.getByText(REPORT_CALL)).toBeInTheDocument();
     expect(document.querySelector("iframe")).toBeNull();
     unmount();
 
     render(showThread(orphan, { hideToolCalls: true }));
-    expect(screen.queryByText(/Tool Result/)).not.toBeInTheDocument();
+    expect(screen.queryByText(REPORT_CALL)).not.toBeInTheDocument();
     expect(document.querySelector("iframe")).toBeNull();
   });
 
   it.each([
     ["no html", { ...VIEW, html: undefined }],
     ["empty html", { ...VIEW, html: "" }],
+    ["blank html", { ...VIEW, html: "   " }],
     ["html that is not a string", { ...VIEW, html: { doc: VIEW_HTML } }],
     ["a string payload", VIEW_HTML],
     ["an array payload", [VIEW]],
@@ -505,50 +604,51 @@ describe("a pending interrupt and a report view", () => {
   const prompts = () =>
     screen.queryAllByRole("heading", { name: "Human Interrupt" });
 
-  it("is drawn under a view standing in for an uncalled result, as it was under the generic one", () => {
+  it("is drawn under a view standing in for an uncalled result, as it was under the generic one", async () => {
     // Before this feature: the result's own row, and the interrupt under it.
     const { unmount } = render(
       showThread([question, reportResult()], { interrupt }),
     );
-    expect(screen.getByText(/Tool Result/)).toBeInTheDocument();
+    expect(screen.getByText(REPORT_CALL)).toBeInTheDocument();
     expect(prompts()).toHaveLength(1);
     unmount();
 
     render(showThread([question, reportWithView], { interrupt }));
     expect(prompts()).toHaveLength(1);
-    expect(follows(prompts()[0], view()!)).toBe(true);
+    expect(
+      follows(prompts()[0], await screen.findByTitle("Stock Report")),
+    ).toBe(true);
   });
 
-  it("is drawn once, under the last message, when a view sits further up", () => {
+  it("is drawn once, under the last message, when a view sits further up", async () => {
     render(showThread([question, reportWithView, answer()], { interrupt }));
 
-    expect(view()).toBeInTheDocument();
+    expect(await screen.findByTitle("Stock Report")).toBeInTheDocument();
     expect(prompts()).toHaveLength(1);
     expect(
       follows(prompts()[0], screen.getByText("Infosys looks steady.")),
     ).toBe(true);
   });
 
-  it("is left as it was for a result whose call is in the thread", () => {
-    // Folded into its call's accordion, an ordinary result has never carried
-    // the interrupt; the view that replaces the accordion does not either.
+  it("preserves an interrupt on the last paired result with and without a report", async () => {
     const { unmount } = render(
       showThread([question, calls, scanResult, reportResult()], { interrupt }),
     );
-    expect(prompts()).toHaveLength(0);
+    expect(prompts()).toHaveLength(1);
     unmount();
 
     render(
       showThread([question, calls, scanResult, reportWithView], { interrupt }),
     );
-    expect(view()).toBeInTheDocument();
-    expect(prompts()).toHaveLength(0);
+    expect(await screen.findByTitle("Stock Report")).toBeInTheDocument();
+    expect(prompts()).toHaveLength(1);
+    expect(follows(prompts()[0], view()!)).toBe(true);
   });
 
-  it("draws nothing extra under a last view when no interrupt is pending", () => {
+  it("draws nothing extra under a last view when no interrupt is pending", async () => {
     render(showThread([question, reportWithView]));
 
-    expect(view()).toBeInTheDocument();
+    expect(await screen.findByTitle("Stock Report")).toBeInTheDocument();
     expect(prompts()).toHaveLength(0);
   });
 });

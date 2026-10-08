@@ -1,11 +1,5 @@
-import { parsePartialJson } from "@langchain/core/output_parsers";
 import { useStreamContext } from "@/providers/Stream";
-import {
-  AIMessage,
-  Checkpoint,
-  Message,
-  ToolMessage,
-} from "@langchain/langgraph-sdk";
+import { Checkpoint, Message, ToolMessage } from "@langchain/langgraph-sdk";
 import { useStream } from "@langchain/langgraph-sdk/react";
 import { getContentString } from "../utils";
 import { BranchSwitcher, CommandBar } from "./shared";
@@ -13,8 +7,6 @@ import { MarkdownText } from "../markdown-text";
 import { LoadExternalComponent } from "@langchain/langgraph-sdk/react-ui";
 import { cn } from "@/lib/utils";
 import { ToolCalls, ToolResult } from "./tool-calls";
-import { getViewCallIds } from "./mcp-app-payload";
-import { MessageContentComplex } from "@langchain/core/messages";
 import { Fragment } from "react/jsx-runtime";
 import { useMemo } from "react";
 import { isAgentInboxInterruptSchema } from "@/lib/agent-inbox-interrupt";
@@ -22,6 +14,10 @@ import { ThreadView } from "../agent-inbox";
 import { useQueryState, parseAsBoolean } from "nuqs";
 import { GenericInterruptView } from "./generic-interrupt";
 import { useArtifact } from "../artifact";
+import { getToolCalls } from "./tool-activity";
+import { McpAppReport } from "./mcp-app";
+import { getMcpAppPayload } from "./mcp-app-payload";
+import { useCitationMarkdown } from "./citations-view";
 
 function CustomComponent({
   message,
@@ -51,37 +47,13 @@ function CustomComponent({
   );
 }
 
-function parseAnthropicStreamedToolCalls(
-  content: MessageContentComplex[],
-): AIMessage["tool_calls"] {
-  const toolCallContents = content.filter((c) => c.type === "tool_use" && c.id);
-
-  return toolCallContents.map((tc) => {
-    const toolCall = tc as Record<string, any>;
-    let json: Record<string, any> = {};
-    if (toolCall?.input) {
-      try {
-        json = parsePartialJson(toolCall.input) ?? {};
-      } catch {
-        // Pass
-      }
-    }
-    return {
-      name: toolCall.name ?? "",
-      id: toolCall.id ?? "",
-      args: json,
-      type: "tool_call",
-    };
-  });
-}
-
 interface InterruptProps {
   interrupt?: unknown;
   isLastMessage: boolean;
   hasNoAIOrToolMessages: boolean;
 }
 
-export function Interrupt({
+function Interrupt({
   interrupt,
   isLastMessage,
   hasNoAIOrToolMessages,
@@ -110,13 +82,22 @@ export function AssistantMessage({
   message,
   isLoading,
   handleRegenerate,
+  includeToolCalls = true,
 }: {
   message: Message | undefined;
   isLoading: boolean;
-  handleRegenerate: (parentCheckpoint: Checkpoint | null | undefined) => void;
+  handleRegenerate: (
+    parentCheckpoint: Checkpoint | null | undefined,
+    message?: Message,
+  ) => void;
+  includeToolCalls?: boolean;
 }) {
   const content = message?.content ?? [];
-  const contentString = getContentString(content);
+  // Tool payloads are opaque JSON values, including arrays, false and null.
+  // Only assistant prose goes through text-block extraction.
+  const contentString =
+    message?.type === "tool" ? "" : getContentString(content);
+  const markdown = useCitationMarkdown(contentString);
   const [hideToolCalls] = useQueryState(
     "hideToolCalls",
     parseAsBoolean.withDefault(false),
@@ -124,7 +105,7 @@ export function AssistantMessage({
 
   const thread = useStreamContext();
   const isLastMessage =
-    thread.messages[thread.messages.length - 1].id === message?.id;
+    thread.messages[thread.messages.length - 1]?.id === message?.id;
   const hasNoAIOrToolMessages = !thread.messages.find(
     (m) => m.type === "ai" || m.type === "tool",
   );
@@ -132,9 +113,7 @@ export function AssistantMessage({
   const threadInterrupt = thread.interrupt;
 
   const parentCheckpoint = meta?.firstSeenState?.parent_checkpoint;
-  const anthropicStreamedToolCalls = Array.isArray(content)
-    ? parseAnthropicStreamedToolCalls(content)
-    : undefined;
+  const toolCalls = message ? getToolCalls(message) : [];
 
   const toolResponses = useMemo(() => {
     const map = new Map<string, ToolMessage>();
@@ -145,41 +124,30 @@ export function AssistantMessage({
     }
     return map;
   }, [thread.messages]);
-  // A call whose result carries an interactive view is drawn as that view, at
-  // the result's place in the thread (see <Thread>) — not as a call/result
-  // accordion as well. Until the result arrives the call is listed as usual.
-  // Asked of every result the call has, not of `toolResponses`: that map keeps
-  // only the latest, and a call answered twice can have its view on the first.
-  const viewCallIds = useMemo(
-    () => getViewCallIds(thread.messages),
-    [thread.messages],
-  );
-  const withoutViewCalls = (toolCalls: AIMessage["tool_calls"]) =>
-    toolCalls?.filter((tc) => !(tc.id && viewCallIds.has(tc.id)));
 
-  const hasToolCalls =
-    message &&
-    "tool_calls" in message &&
-    message.tool_calls &&
-    message.tool_calls.length > 0;
-  const toolCallsHaveContents =
-    hasToolCalls &&
-    message.tool_calls?.some(
-      (tc) => tc.args && Object.keys(tc.args).length > 0,
-    );
-  const hasAnthropicToolCalls = !!anthropicStreamedToolCalls?.length;
   const isToolResult = message?.type === "tool";
-
-  if (isToolResult && hideToolCalls) {
-    return null;
-  }
+  const mcpApp = message ? getMcpAppPayload(message) : undefined;
 
   return (
     <div className="group mr-auto flex w-full items-start gap-2">
       <div className="flex w-full flex-col gap-2">
         {isToolResult ? (
           <>
-            <ToolResult message={message} />
+            {mcpApp ? (
+              <McpAppReport app={mcpApp} />
+            ) : (
+              !hideToolCalls &&
+              (includeToolCalls ||
+                !thread.messages.some((candidate) =>
+                  getToolCalls(candidate).some(
+                    (call) => call.id && call.id === message.tool_call_id,
+                  ),
+                )) && <ToolResult message={message} />
+            )}
+            <CustomComponent
+              message={message}
+              thread={thread}
+            />
             <Interrupt
               interrupt={threadInterrupt}
               isLastMessage={isLastMessage}
@@ -189,32 +157,26 @@ export function AssistantMessage({
         ) : (
           <>
             {contentString.length > 0 && (
-              <div className="py-1">
-                <MarkdownText>{contentString}</MarkdownText>
+              <div className="chat-answer bg-background/75 rounded-xl border p-[14px] text-[13px] leading-[1.5]">
+                <MarkdownText components={markdown.components}>
+                  {markdown.text}
+                </MarkdownText>
               </div>
             )}
 
-            {!hideToolCalls && (
-              <>
-                {(hasToolCalls && toolCallsHaveContents && (
-                  <ToolCalls
-                    toolCalls={withoutViewCalls(message.tool_calls)}
-                    responses={toolResponses}
-                  />
-                )) ||
-                  (hasAnthropicToolCalls && (
-                    <ToolCalls
-                      toolCalls={withoutViewCalls(anthropicStreamedToolCalls)}
-                      responses={toolResponses}
-                    />
-                  )) ||
-                  (hasToolCalls && (
-                    <ToolCalls
-                      toolCalls={withoutViewCalls(message.tool_calls)}
-                      responses={toolResponses}
-                    />
-                  ))}
-              </>
+            {!hideToolCalls && includeToolCalls && (
+              <ToolCalls
+                toolCalls={toolCalls}
+                responses={toolResponses}
+                phase={isLoading ? "running" : "settled"}
+                activeCallKey={
+                  isLoading
+                    ? toolCalls.find(
+                        (call) => call.id && !toolResponses.has(call.id),
+                      )?.id
+                    : undefined
+                }
+              />
             )}
 
             {message && (
@@ -228,25 +190,30 @@ export function AssistantMessage({
               isLastMessage={isLastMessage}
               hasNoAIOrToolMessages={hasNoAIOrToolMessages}
             />
-            <div
-              className={cn(
-                "mr-auto flex items-center gap-2 transition-opacity",
-                "opacity-0 group-focus-within:opacity-100 group-hover:opacity-100",
-              )}
-            >
-              <BranchSwitcher
-                branch={meta?.branch}
-                branchOptions={meta?.branchOptions}
-                onSelect={(branch) => thread.setBranch(branch)}
-                isLoading={isLoading}
-              />
-              <CommandBar
-                content={contentString}
-                isLoading={isLoading}
-                isAiMessage={true}
-                handleRegenerate={() => handleRegenerate(parentCheckpoint)}
-              />
-            </div>
+            {(contentString.length > 0 ||
+              (meta?.branchOptions?.length ?? 0) > 1) && (
+              <div
+                className={cn(
+                  "message-actions mr-auto flex items-center gap-2 transition-opacity",
+                  "opacity-0 group-focus-within:opacity-100 group-hover:opacity-100",
+                )}
+              >
+                <BranchSwitcher
+                  branch={meta?.branch}
+                  branchOptions={meta?.branchOptions}
+                  onSelect={(branch) => thread.setBranch(branch)}
+                  isLoading={isLoading}
+                />
+                <CommandBar
+                  content={contentString}
+                  isLoading={isLoading}
+                  isAiMessage={true}
+                  handleRegenerate={() =>
+                    handleRegenerate(parentCheckpoint, message)
+                  }
+                />
+              </div>
+            )}
           </>
         )}
       </div>
@@ -256,8 +223,15 @@ export function AssistantMessage({
 
 export function AssistantMessageLoading() {
   return (
-    <div className="mr-auto flex items-start gap-2">
-      <div className="bg-muted flex h-8 items-center gap-1 rounded-2xl px-4 py-2">
+    <div
+      className="mr-auto flex items-start gap-2"
+      role="status"
+      aria-label="Thinking"
+    >
+      <div
+        className="bg-muted flex h-8 items-center gap-1 rounded-2xl px-4 py-2"
+        aria-hidden="true"
+      >
         <div className="bg-foreground/50 h-1.5 w-1.5 animate-[pulse_1.5s_ease-in-out_infinite] rounded-full"></div>
         <div className="bg-foreground/50 h-1.5 w-1.5 animate-[pulse_1.5s_ease-in-out_0.5s_infinite] rounded-full"></div>
         <div className="bg-foreground/50 h-1.5 w-1.5 animate-[pulse_1.5s_ease-in-out_1s_infinite] rounded-full"></div>

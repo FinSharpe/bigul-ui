@@ -2,6 +2,14 @@
 
 Agent Chat UI is a Next.js application which enables chatting with any LangGraph server with a `messages` key through a chat interface.
 
+## Shared chat page
+
+The conversation UI follows the finalized shared template (`6294285`) and FinSharpe-Mobile, while retaining Bigul's title, deployment settings, authentication and interactive report host from main. Reports stay beside their originating tool calls; requests and responses remain inspectable, and the iframe retains its state across streamed snapshots.
+
+Conversation history, model selection, recoverable streaming, suggested prompts and citation source previews use the existing LangGraph SDK. Optional model discovery uses `/api/models`; citation PDFs use `/api/filings/pdf`. These requests stay within the configured deployment and use its existing API key and authentication scheme. Generic deployments retain the previous model configuration fallback when the optional catalog is unavailable.
+
+Validation commands: `pnpm test`, `pnpm lint`, `node node_modules/@typescript/typescript6/bin/tsc6 --noEmit`, and `pnpm build`. `tests/support/mock-langgraph-server.mjs` supplies synthetic API fixtures for local browser checks; it does not replace verification against a deployment's actual contract.
+
 > [!NOTE]
 > 🎥 Watch the video setup guide [here](https://youtu.be/lInrwVnZ83o).
 

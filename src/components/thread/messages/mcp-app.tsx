@@ -24,11 +24,81 @@ import {
   useRef,
   useState,
 } from "react";
-import type { ToolMessage } from "@langchain/langgraph-sdk";
+import type { Message, ToolMessage } from "@langchain/langgraph-sdk";
 import { isEqual } from "lodash";
 import { ChartColumn, LoaderCircle } from "lucide-react";
-import { getMcpAppPayload, mcpAppHeading } from "./mcp-app-payload";
+import {
+  getMcpAppPayload,
+  mcpAppHeading,
+  type McpAppPayload,
+} from "./mcp-app-payload";
 import { stampGuestTheme, useHostTheme, type HostTheme } from "./mcp-app-theme";
+import { additionalKwargs } from "./tool-activity";
+
+export type McpApp = McpAppPayload;
+export function getMcpApp(message: Message): McpApp | undefined {
+  return (
+    getMcpAppPayload({ additional_kwargs: additionalKwargs(message) }) ??
+    undefined
+  );
+}
+
+/** Keep reports self-contained, with the same document policy as Mobile. */
+export function wrapGuestHtml(html: string, theme: HostTheme, fontCss = "") {
+  const policy = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src data: blob:; connect-src 'none'; form-action 'none'; frame-src 'none'; base-uri 'none'">`;
+  const navigation = `<script>document.addEventListener('click',function(e){if(e.target.closest&&e.target.closest('a'))e.preventDefault()},true);</script>`;
+  return stampGuestTheme(html, theme, policy + fontCss + navigation);
+}
+
+let fontPromise: Promise<string> | undefined;
+function reportFontCss() {
+  return (fontPromise ??= Promise.all(
+    [400, 500, 600].map(async (weight) => {
+      const response = await fetch(
+        `/fonts/report/Inter-${weight}.subset.woff2`,
+        { signal: AbortSignal.timeout(4000) },
+      );
+      if (!response.ok) throw new Error("Font unavailable");
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      let binary = "";
+      for (const byte of bytes) binary += String.fromCharCode(byte);
+      return `@font-face{font-family:Inter;font-style:normal;font-weight:${weight};font-display:block;src:url(data:font/woff2;base64,${btoa(binary)}) format('woff2');}`;
+    }),
+  )
+    .then((fonts) => `<style>${fonts.join("")}</style>`)
+    .catch(() => {
+      fontPromise = undefined;
+      return "";
+    }));
+}
+
+export function McpAppReport({ app }: { app: McpApp }) {
+  const [fontCss, setFontCss] = useState<string>();
+  useEffect(() => {
+    let active = true;
+    reportFontCss().then((css) => {
+      if (active) setFontCss(css);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+  return fontCss === undefined ? (
+    <p
+      role="status"
+      className="text-muted-foreground text-xs"
+    >
+      Opening report…
+    </p>
+  ) : (
+    <McpAppFrame
+      html={app.html}
+      structuredContent={app.structuredContent}
+      heading={mcpAppHeading(app)}
+      fontCss={fontCss}
+    />
+  );
+}
 
 // How this host names itself to a guest. `hostInfo` is the MCP-Apps name for
 // the field; `appInfo` is what the first hosts of these views sent. Guests
@@ -52,13 +122,17 @@ function McpAppFrame({
   html,
   structuredContent,
   heading,
+  fontCss = "",
 }: {
   html: string;
   structuredContent: unknown;
   heading: string;
+  fontCss?: string;
 }) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [height, setHeight] = useState(DEFAULT_HEIGHT);
+  const [failed, setFailed] = useState(false);
+  const [generation, setGeneration] = useState(0);
   // Set inside the effect, AFTER the message listener is attached, so the
   // guest's one-shot "ui/initialize" request can never arrive unheard.
   const [srcDoc, setSrcDoc] = useState<string>();
@@ -90,6 +164,7 @@ function McpAppFrame({
   // told. A theme switch before it is ready rides on the initialize reply
   // instead.
   const readyRef = useRef(false);
+  const liveDocumentRef = useRef(false);
   const guestThemeRef = useRef<HostTheme | null>(null);
   const guestDataRef = useRef<unknown>(undefined);
 
@@ -126,13 +201,21 @@ function McpAppFrame({
   useEffect(() => {
     // A new document loads and initialises afresh.
     readyRef.current = false;
+    liveDocumentRef.current = false;
     guestThemeRef.current = null;
 
     const onMessage = (event: MessageEvent) => {
       // Only this widget's own iframe — several can share one thread.
       const guest = iframeRef.current?.contentWindow;
       if (!guest || event.source !== guest) return;
-      const message: unknown = event.data;
+      let message: unknown = event.data;
+      if (typeof message === "string") {
+        try {
+          message = JSON.parse(message);
+        } catch {
+          return;
+        }
+      }
       if (
         !isRecord(message) ||
         message.jsonrpc !== "2.0" ||
@@ -148,6 +231,8 @@ function McpAppFrame({
         case "ui/initialize":
           if (!isRequest) return;
           setLiveHtml(html);
+          liveDocumentRef.current = true;
+          setFailed(false);
           guestThemeRef.current = themeRef.current;
           post({
             jsonrpc: "2.0",
@@ -166,6 +251,9 @@ function McpAppFrame({
           return;
         // (2) the guest is ready -> (3) hand it the data.
         case "ui/notifications/initialized":
+          setLiveHtml(html);
+          liveDocumentRef.current = true;
+          setFailed(false);
           readyRef.current = true;
           sendData();
           syncTheme();
@@ -199,9 +287,15 @@ function McpAppFrame({
 
     window.addEventListener("message", onMessage);
     // The listener is live — now load the guest, already in the app's theme.
-    setSrcDoc(stampGuestTheme(html, themeRef.current));
-    return () => window.removeEventListener("message", onMessage);
-  }, [html, post, sendData, syncTheme]);
+    setSrcDoc(wrapGuestHtml(html, themeRef.current, fontCss));
+    const timeout = setTimeout(() => {
+      if (!liveDocumentRef.current) setFailed(true);
+    }, 15000);
+    return () => {
+      clearTimeout(timeout);
+      window.removeEventListener("message", onMessage);
+    };
+  }, [html, fontCss, generation, post, sendData, syncTheme]);
 
   // A frame draws the data it is given, so one that is given different data
   // says so to its guest: every report of a kind is the same document, and
@@ -217,14 +311,14 @@ function McpAppFrame({
   }, [structuredContent, sendData]);
 
   return (
-    <div className="bg-card text-card-foreground w-full overflow-hidden rounded-xl border shadow-xs">
-      <div className="flex items-center gap-2 border-b px-4 py-2.5">
+    <div className="bg-background/70 text-foreground my-1 w-full min-w-0 overflow-hidden rounded-xl border">
+      <div className="flex items-center gap-2 border-b px-3 py-2">
         <ChartColumn
           aria-hidden
           className="text-muted-foreground size-4 shrink-0"
         />
-        <h3 className="truncate text-sm font-medium">{heading}</h3>
-        {loading && (
+        <h3 className="truncate text-[11px] font-medium">{heading}</h3>
+        {loading && !failed && (
           <span className="text-muted-foreground ml-auto flex shrink-0 items-center gap-1.5 text-xs">
             <LoaderCircle
               aria-hidden
@@ -233,18 +327,49 @@ function McpAppFrame({
             Loading
           </span>
         )}
+        {failed && (
+          <button
+            type="button"
+            className="text-primary ml-auto shrink-0 text-xs underline underline-offset-2"
+            onClick={() => {
+              setFailed(false);
+              setLiveHtml(undefined);
+              setGeneration((value) => value + 1);
+            }}
+          >
+            Reload report
+          </button>
+        )}
       </div>
+      {failed && (
+        <p
+          role="alert"
+          className="text-muted-foreground px-3 py-2 text-xs"
+        >
+          The report did not open. You can reload it; the conversation is saved.
+        </p>
+      )}
       <iframe
+        key={generation}
         ref={iframeRef}
         srcDoc={srcDoc}
         // Having loaded is the other sign of life, and the only one from a
         // document that never says a word. Not listened for until there is a
         // document: the empty frame this starts as "loads" too.
-        onLoad={srcDoc === undefined ? undefined : () => setLiveHtml(html)}
+        onLoad={
+          srcDoc === undefined
+            ? undefined
+            : () => {
+                liveDocumentRef.current = true;
+                setLiveHtml(html);
+                setFailed(false);
+              }
+        }
         // Scripts only. Without allow-same-origin the view runs at an opaque
         // origin: postMessage and canvas work; cookies, storage and this
         // page's DOM are out of its reach.
         sandbox="allow-scripts"
+        referrerPolicy="no-referrer"
         title={heading}
         className="block w-full border-0"
         style={{ height }}
