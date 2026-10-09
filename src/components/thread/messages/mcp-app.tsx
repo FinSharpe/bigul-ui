@@ -47,7 +47,11 @@ export function getMcpApp(message: Message): McpApp | undefined {
 export function wrapGuestHtml(html: string, theme: HostTheme, fontCss = "") {
   const policy = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src data: blob:; connect-src 'none'; form-action 'none'; frame-src 'none'; base-uri 'none'">`;
   const navigation = `<script>document.addEventListener('click',function(e){if(e.target.closest&&e.target.closest('a'))e.preventDefault()},true);</script>`;
-  return stampGuestTheme(html, theme, policy + fontCss + navigation);
+  // Embedded reports use the chat column's gutters, rather than a second
+  // document inset. Only the outer shell changes; cards and tables keep theirs.
+  const layout =
+    "<style data-chat-report-layout>html,body{margin:0!important;padding:0!important}body>.wrap{margin:0!important;padding:0!important}</style>";
+  return stampGuestTheme(html, theme, policy + fontCss + navigation + layout);
 }
 
 let fontPromise: Promise<string> | undefined;
@@ -311,7 +315,7 @@ function McpAppFrame({
   }, [structuredContent, sendData]);
 
   return (
-    <div className="my-1 w-full min-w-0">
+    <div className="w-full min-w-0">
       {loading && !failed && (
         <p
           role="status"
