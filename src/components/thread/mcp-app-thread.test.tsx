@@ -174,6 +174,20 @@ beforeEach(() => {
 });
 
 describe("a report view in the thread", () => {
+  it("keeps the model picker inside the leading composer slot", () => {
+    render(showThread([]));
+    const composer = screen.getByRole("form", { name: "Message composer" });
+    const model = screen.getByRole("combobox", { name: "Select model" });
+    const upload = screen.getByRole("button", { name: "Upload PDF or image" });
+    const message = screen.getByRole("textbox", { name: "Your message" });
+    expect(composer).toContainElement(model);
+    expect(follows(upload, model)).toBe(true);
+    expect(follows(message, model)).toBe(true);
+    expect(
+      screen.getAllByRole("combobox", { name: "Select model" }),
+    ).toHaveLength(1);
+  });
+
   const thread = [question, calls, scanResult, reportWithView, answer()];
 
   it("is drawn inline, where its tool result sits: after the calls, before the answer", async () => {

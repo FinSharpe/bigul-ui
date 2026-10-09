@@ -26,7 +26,7 @@ import {
 } from "react";
 import type { Message, ToolMessage } from "@langchain/langgraph-sdk";
 import { isEqual } from "lodash";
-import { ChartColumn, LoaderCircle } from "lucide-react";
+import { LoaderCircle } from "lucide-react";
 import {
   getMcpAppPayload,
   mcpAppHeading,
@@ -139,7 +139,7 @@ function McpAppFrame({
   // The document whose guest has shown a sign of life. Until the one in the
   // frame has, the frame is an empty box, and that can last: a document runs
   // no script while a stylesheet it links to is still on its way, and the
-  // report views link a web font. The card says it is loading meanwhile.
+  // report views link a web font. A status says it is loading meanwhile.
   // Kept as the document, not as a flag, so that a new document starts out
   // loading without having to be told.
   const [liveHtml, setLiveHtml] = useState<string>();
@@ -311,26 +311,28 @@ function McpAppFrame({
   }, [structuredContent, sendData]);
 
   return (
-    <div className="bg-background/70 text-foreground my-1 w-full min-w-0 overflow-hidden rounded-xl border">
-      <div className="flex items-center gap-2 border-b px-3 py-2">
-        <ChartColumn
-          aria-hidden
-          className="text-muted-foreground size-4 shrink-0"
-        />
-        <h3 className="truncate text-[11px] font-medium">{heading}</h3>
-        {loading && !failed && (
-          <span className="text-muted-foreground ml-auto flex shrink-0 items-center gap-1.5 text-xs">
-            <LoaderCircle
-              aria-hidden
-              className="size-3 animate-spin"
-            />
-            Loading
-          </span>
-        )}
-        {failed && (
+    <div className="my-1 w-full min-w-0">
+      {loading && !failed && (
+        <p
+          role="status"
+          className="text-muted-foreground flex items-center gap-1.5 py-2 text-xs"
+        >
+          <LoaderCircle
+            aria-hidden
+            className="size-3 animate-spin"
+          />
+          Loading
+        </p>
+      )}
+      {failed && (
+        <div className="text-muted-foreground flex flex-wrap items-center gap-2 py-2 text-xs">
+          <p role="alert">
+            The report did not open. You can reload it; the conversation is
+            saved.
+          </p>
           <button
             type="button"
-            className="text-primary ml-auto shrink-0 text-xs underline underline-offset-2"
+            className="text-primary underline underline-offset-2"
             onClick={() => {
               setFailed(false);
               setLiveHtml(undefined);
@@ -339,15 +341,7 @@ function McpAppFrame({
           >
             Reload report
           </button>
-        )}
-      </div>
-      {failed && (
-        <p
-          role="alert"
-          className="text-muted-foreground px-3 py-2 text-xs"
-        >
-          The report did not open. You can reload it; the conversation is saved.
-        </p>
+        </div>
       )}
       <iframe
         key={generation}

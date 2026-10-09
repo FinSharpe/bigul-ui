@@ -141,12 +141,11 @@ describe("<McpAppToolMessage /> frame", () => {
     expect(frame().getAttribute("srcdoc")).not.toBeNull();
   });
 
-  it("names the frame and its heading after the tool", () => {
+  it("names the accessible frame after the tool without a visible heading or outer frame", () => {
     render(<McpAppToolMessage message={viewMessage()} />);
-    expect(
-      screen.getByRole("heading", { name: "Stock Report" }),
-    ).toBeInTheDocument();
+    expect(screen.queryByRole("heading")).not.toBeInTheDocument();
     expect(frame().title).toBe("Stock Report");
+    expect(frame().parentElement).not.toHaveClass("border", "rounded-xl");
   });
 
   it("uses the tool's own title when it sends one", () => {
@@ -154,8 +153,8 @@ describe("<McpAppToolMessage /> frame", () => {
       <McpAppToolMessage message={viewMessage({ title: "Infosys Ltd." })} />,
     );
     expect(
-      screen.getByRole("heading", { name: "Infosys Ltd." }),
-    ).toBeInTheDocument();
+      screen.queryByRole("heading", { name: "Infosys Ltd." }),
+    ).not.toBeInTheDocument();
     expect(frame("Infosys Ltd.")).toBeInTheDocument();
   });
 
@@ -795,11 +794,11 @@ describe("<McpAppToolMessage /> while the view is loading", () => {
 
     guestSends(iframe, initialize());
     expect(loadingNotes()).toHaveLength(0);
-    // Said beside the heading — the frame itself is left alone.
+    // Removing the loading status leaves the report frame untouched.
     expect(frame()).toBe(iframe);
     expect(
-      screen.getByRole("heading", { name: "Stock Report" }),
-    ).toBeInTheDocument();
+      screen.queryByRole("heading", { name: "Stock Report" }),
+    ).not.toBeInTheDocument();
   });
 
   it("says so until the document has loaded, when that document never starts a handshake", () => {
@@ -881,7 +880,8 @@ describe("<McpAppToolMessage /> while the view is loading", () => {
 
     const [stillLoading] = loadingNotes();
     expect(loadingNotes()).toHaveLength(1);
-    expect(stillLoading.parentElement).toHaveTextContent("MF Report");
+    expect(frame("MF Report").parentElement).toContainElement(stillLoading);
+    expect(stock.parentElement).not.toContainElement(stillLoading);
   });
 });
 
@@ -954,7 +954,7 @@ describe("<McpAppToolMessage /> white-labelling", () => {
     // words a person reads there, and the ones a screen reader is given.
     const chrome = container.cloneNode(true) as HTMLElement;
     chrome.querySelector("iframe")?.removeAttribute("srcdoc");
-    expect(chrome.textContent).toBe("Stock Report");
+    expect(chrome.textContent).toBe("");
     expect(
       [...chrome.querySelectorAll("*")].flatMap((element) =>
         ["title", "aria-label", "alt"].flatMap(
