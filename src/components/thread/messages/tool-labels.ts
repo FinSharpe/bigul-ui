@@ -1,8 +1,5 @@
 // Friendly labels, seeded from FinSharpe-Mobile's production tool_copy.dart.
-// The tables have since diverged on purpose: the milestone-1 views and
-// get_returns (finsharpe-mcp#83) were labelled here first, and mobile's
-// backtesting render labels were dropped because bigul-backend connects to
-// the tradekit server only. A diff against mobile is not drift by itself.
+// Diverges on purpose: bigul-backend connects to the tradekit server only.
 const TOOL_LABELS: Record<string, { name: string; active: string }> = {
   call_api: {
     name: "Gather financial data",
