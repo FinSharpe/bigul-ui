@@ -98,6 +98,38 @@ const TOOL_LABELS: Record<string, { name: string; active: string }> = {
     name: "Build the portfolio report",
     active: "Building the portfolio report",
   },
+  render_stock_compare: {
+    name: "Build the stock comparison",
+    active: "Building the stock comparison",
+  },
+  render_mf_compare: {
+    name: "Build the mutual fund comparison",
+    active: "Building the mutual fund comparison",
+  },
+  render_market_pulse: {
+    name: "Build the market pulse",
+    active: "Building the market pulse",
+  },
+  render_ipo_report: {
+    name: "Build the IPO report",
+    active: "Building the IPO report",
+  },
+  render_mf_changes: {
+    name: "Build the fund's buys and sells",
+    active: "Building the fund's buys and sells",
+  },
+  render_quarterly_results: {
+    name: "Build the quarterly results report",
+    active: "Building the quarterly results report",
+  },
+  render_scan_board: {
+    name: "Build the scan board",
+    active: "Building the scan board",
+  },
+  get_returns: {
+    name: "Calculate investment returns",
+    active: "Calculating investment returns",
+  },
   search_filings: {
     name: "Search company filings",
     active: "Searching company filings",
@@ -242,18 +274,6 @@ const TOOL_LABELS: Record<string, { name: string; active: string }> = {
   walk_forward_cv: {
     name: "Test across successive time windows",
     active: "Testing across successive time windows",
-  },
-  render_optimizer_dashboard: {
-    name: "Build the portfolio backtest dashboard",
-    active: "Building the portfolio backtest dashboard",
-  },
-  render_signal_trade_inspector: {
-    name: "Build the trade breakdown",
-    active: "Building the trade breakdown",
-  },
-  render_cv_robustness_card: {
-    name: "Build the strategy validation report",
-    active: "Building the strategy validation report",
   },
   opstra_option_chain: {
     name: "Read the option chain",

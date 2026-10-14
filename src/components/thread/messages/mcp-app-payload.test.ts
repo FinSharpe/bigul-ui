@@ -106,6 +106,22 @@ describe("mcpAppHeading", () => {
 
   it("keeps initialisms in capitals", () => {
     expect(mcpAppHeading({ toolName: "render_mf_report" })).toBe("MF Report");
+    expect(mcpAppHeading({ toolName: "render_mf_compare" })).toBe("MF Compare");
+    expect(mcpAppHeading({ toolName: "render_mf_changes" })).toBe("MF Changes");
+    expect(mcpAppHeading({ toolName: "render_ipo_report" })).toBe("IPO Report");
+  });
+
+  it("names every view the tradekit server can render", () => {
+    expect(mcpAppHeading({ toolName: "render_stock_compare" })).toBe(
+      "Stock Compare",
+    );
+    expect(mcpAppHeading({ toolName: "render_market_pulse" })).toBe(
+      "Market Pulse",
+    );
+    expect(mcpAppHeading({ toolName: "render_quarterly_results" })).toBe(
+      "Quarterly Results",
+    );
+    expect(mcpAppHeading({ toolName: "render_scan_board" })).toBe("Scan Board");
   });
 
   it("works for a tool that is not a render_* tool", () => {

@@ -12,6 +12,29 @@ describe("formatToolName", () => {
     expect(formatToolName("scan", true)).toBe("Scanning the market");
   });
 
+  it("labels every view the tradekit server can render", () => {
+    expect(formatToolName("render_stock_compare")).toBe(
+      "Build the stock comparison",
+    );
+    expect(formatToolName("render_mf_compare")).toBe(
+      "Build the mutual fund comparison",
+    );
+    expect(formatToolName("render_market_pulse")).toBe(
+      "Build the market pulse",
+    );
+    expect(formatToolName("render_ipo_report")).toBe("Build the IPO report");
+    expect(formatToolName("render_mf_changes", true)).toBe(
+      "Building the fund's buys and sells",
+    );
+    expect(formatToolName("render_quarterly_results")).toBe(
+      "Build the quarterly results report",
+    );
+    expect(formatToolName("render_scan_board", true)).toBe(
+      "Building the scan board",
+    );
+    expect(formatToolName("get_returns")).toBe("Calculate investment returns");
+  });
+
   it("falls back to Title Case for unknown tool names", () => {
     expect(formatToolName("get_foo_bar")).toBe("Get Foo Bar");
     expect(formatToolName("do_something_nice")).toBe("Do Something Nice");
