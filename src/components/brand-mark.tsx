@@ -1,32 +1,16 @@
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 
-/** Bigul's logo mark (from bigul.co), shown beside the Mayra AI name. */
+/** Mayra AI Assistant logo (wordmark). Size it by height, e.g. `h-8`. */
 export function BrandMark({ className }: { className?: string }) {
   return (
-    <svg
-      viewBox="-3.22 0.45 44 44"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-      focusable="false"
-      className={cn("shrink-0", className)}
-    >
-      <path
-        d="M5.92188 22.9209V7.6621C5.92188 3.86544 9.48285 0.765625 13.8939 0.765625H31.5609C36.8909 0.765625 39.5559 6.34048 35.7881 9.58447L16.1223 26.5734C12.3776 29.8414 5.92188 27.5345 5.92188 22.9209Z"
-        fill="#5367FC"
-      />
-      <path
-        d="M5.92188 38.9521V23.6934C5.92188 19.8967 9.48285 16.7969 13.8939 16.7969H31.5609C36.8909 16.7969 39.5559 22.3717 35.7881 25.6157L16.1223 42.6046C12.3776 45.8726 5.92188 43.5658 5.92188 38.9521Z"
-        fill="#00FFC1"
-      />
-      <path
-        d="M12.9114 29.5499L27.7067 16.7422H9.23556C4.13533 16.7662 0 20.3466 0 24.744V24.9122C0 30.7514 8.15578 33.683 12.9114 29.5499Z"
-        fill="#231F20"
-      />
-      <path
-        d="M6.12142 31.2238H5.91406V17.4549L6.12142 17.3828V31.2238Z M6.87203 19.6406H5.17188V28.892H6.87203V19.6406Z M11.6058 21.375H11.3984V26.9499H11.6058V21.375Z M12.3642 22.0703H10.6641V26.0592H12.3642V22.0703Z M3.55111 22.2891H3.34375V25.485H3.55111V22.2891Z M4.30172 23.625H2.60156V25.4512H4.30172V23.625Z M16.3402 18.0938H16.1328V22.0346H16.3402V18.0938Z M17.0752 18.8672H15.375V20.6934H17.0752V18.8672Z M13.6292 19.8281H13.4219V24.9704H13.6292V19.8281Z M14.3877 20.4688H12.6875V23.0399H14.3877V20.4688Z M8.96517 17.6406H8.75781V24.9937H8.96517V17.6406Z M9.71578 19.5469H8.01562V23.9203H9.71578V19.5469Z"
-        fill="white"
-      />
-    </svg>
+    <Image
+      src="/mayra-logo.png"
+      alt="Mayra AI Assistant"
+      width={645}
+      height={167}
+      priority
+      className={cn("w-auto shrink-0", className)}
+    />
   );
 }

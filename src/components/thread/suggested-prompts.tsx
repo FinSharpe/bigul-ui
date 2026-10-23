@@ -44,7 +44,7 @@ export function SuggestedPrompts({
       className="mx-auto flex w-full max-w-lg flex-col items-center px-1 py-8 sm:py-12"
       aria-label="Start a conversation"
     >
-      <BrandMark className="size-14" />
+      <BrandMark className="h-14" />
       <h1 className="mt-3 text-lg leading-[1.3] font-medium">
         Consult your agent
       </h1>
