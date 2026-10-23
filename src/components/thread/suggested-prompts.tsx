@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { ArrowUpRight, CornerDownRight, MessagesSquare } from "lucide-react";
+import { ArrowUpRight, CornerDownRight } from "lucide-react";
+import { BrandMark } from "@/components/brand-mark";
 import { cn } from "@/lib/utils";
 
 // The production mobile empty state (chat_screen.dart), including its wording.
@@ -43,15 +44,7 @@ export function SuggestedPrompts({
       className="mx-auto flex w-full max-w-lg flex-col items-center px-1 py-8 sm:py-12"
       aria-label="Start a conversation"
     >
-      <div
-        className="flex size-14 items-center justify-center rounded-[14px] text-white [background:var(--brand-gradient)]"
-        aria-hidden="true"
-      >
-        <MessagesSquare
-          className="size-6"
-          strokeWidth={1.6}
-        />
-      </div>
+      <BrandMark className="size-14" />
       <h1 className="mt-3 text-lg leading-[1.3] font-medium">
         Consult your agent
       </h1>

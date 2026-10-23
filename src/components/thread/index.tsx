@@ -15,6 +15,7 @@ import { AssistantMessage, AssistantMessageLoading } from "./messages/ai";
 import { AssistantTranscript } from "./messages/assistant-transcript";
 import { ensureToolCallsHaveResponses } from "@/lib/ensure-tool-responses";
 import { TooltipIconButton } from "./tooltip-icon-button";
+import { SignOutButton } from "./sign-out-button";
 import {
   ArrowDown,
   ArrowUp,
@@ -40,6 +41,7 @@ import {
 } from "./artifact";
 import { ModelSwitcher } from "./ModelSwitcher";
 import { SuggestedPrompts, FollowUpPrompts } from "./suggested-prompts";
+import { BrandMark } from "@/components/brand-mark";
 import { useChatModels } from "@/hooks/use-chat-models";
 import { getThreadTitle } from "@/lib/thread-history";
 import { hasImageContent, precedingHuman } from "@/lib/chat-submission";
@@ -113,9 +115,7 @@ export function Thread() {
   const canSend = !isLoading && !stream.isThreadLoading && !models.unavailable;
   const chatStarted = !!threadId || !!messages.length;
   const currentThread = threads.find((t) => t.thread_id === threadId);
-  const title = currentThread
-    ? getThreadTitle(currentThread)
-    : "Bigul AI Assistant";
+  const title = currentThread ? getThreadTitle(currentThread) : "Mayra AI";
   const hasNoAIOrToolMessages = !messages.some(
     (m) => m.type === "ai" || m.type === "tool",
   );
@@ -261,6 +261,7 @@ export function Thread() {
             >
               <PanelLeft className="size-5" />
             </TooltipIconButton>
+            <BrandMark className="size-6" />
             <h2 className="truncate text-sm font-medium">{title}</h2>
           </div>
           <div className="flex shrink-0 items-center gap-1">
@@ -286,6 +287,7 @@ export function Thread() {
             >
               <SquarePen className="size-5" />
             </TooltipIconButton>
+            <SignOutButton variant="icon" />
           </div>
         </header>
         <StickToBottom

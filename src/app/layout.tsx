@@ -14,9 +14,20 @@ const inter = localFont({
   display: "swap",
 });
 
+const description =
+  "Mayra AI is Bigul's research assistant. Analyse Indian stocks and mutual funds, compare them side by side, and get clear answers to personal finance questions.";
+
 export const metadata: Metadata = {
-  title: "Bigul AI Assistant",
-  description: "An AI assistant for financial analysis and trading.",
+  title: { default: "Mayra AI", template: "%s · Mayra AI" },
+  description,
+  applicationName: "Mayra AI",
+  openGraph: {
+    type: "website",
+    siteName: "Mayra AI",
+    title: "Mayra AI",
+    description,
+  },
+  twitter: { card: "summary", title: "Mayra AI", description },
 };
 
 export default function RootLayout({

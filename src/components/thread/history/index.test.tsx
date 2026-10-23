@@ -3,6 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import type { Thread } from "@langchain/langgraph-sdk";
+import { SessionProvider } from "@/providers/Session";
 import ThreadHistory from "./index";
 
 const mocks = vi.hoisted(() => ({
@@ -173,5 +174,28 @@ describe("conversation history", () => {
     await waitFor(() =>
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
     );
+  });
+
+  it.each([true, false])(
+    "shows the signed-in client and a sign-out form (large screen: %s)",
+    (largeScreen) => {
+      mocks.largeScreen = largeScreen;
+      render(
+        <NuqsTestingAdapter searchParams={{ chatHistoryOpen: "true" }}>
+          <SessionProvider clientCode="Y09042341">
+            <ThreadHistory />
+          </SessionProvider>
+        </NuqsTestingAdapter>,
+      );
+      expect(screen.getByText("Y09042341")).toBeInTheDocument();
+      expect(screen.getByText(/Signed in as/)).toBeInTheDocument();
+      const signOut = screen.getByRole("button", { name: "Sign out" });
+      expect(signOut.closest("form")).toHaveAttribute("action", "/auth/logout");
+    },
+  );
+
+  it("shows no account footer outside a session", () => {
+    renderHistory();
+    expect(screen.queryByText(/Signed in as/)).not.toBeInTheDocument();
   });
 });
