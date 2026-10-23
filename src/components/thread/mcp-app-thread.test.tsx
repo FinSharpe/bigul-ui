@@ -17,17 +17,6 @@ vi.mock("@/providers/Stream", () => ({
 vi.mock("@/providers/Thread", () => ({
   useThreads: () => ({ threads: [] }),
 }));
-vi.mock("@/hooks/use-chat-models", () => ({
-  useChatModels: () => ({
-    value: "auto",
-    select: vi.fn(),
-    options: [],
-    unavailable: false,
-    supportsImages: true,
-    submissionOptions: () => ({}),
-    cancelPendingSelection: vi.fn(),
-  }),
-}));
 vi.mock("./history", () => ({ default: () => null }));
 vi.mock("use-stick-to-bottom", () => ({
   StickToBottom: ({ children }: { children: React.ReactNode }) => (
@@ -174,18 +163,14 @@ beforeEach(() => {
 });
 
 describe("a report view in the thread", () => {
-  it("keeps the model picker inside the leading composer slot", () => {
+  it("shows no model picker in the composer", () => {
     render(showThread([]));
     const composer = screen.getByRole("form", { name: "Message composer" });
-    const model = screen.getByRole("combobox", { name: "Select model" });
     const upload = screen.getByRole("button", { name: "Upload PDF or image" });
-    const message = screen.getByRole("textbox", { name: "Your message" });
-    expect(composer).toContainElement(model);
-    expect(follows(upload, model)).toBe(true);
-    expect(follows(message, model)).toBe(true);
+    expect(composer).toContainElement(upload);
     expect(
-      screen.getAllByRole("combobox", { name: "Select model" }),
-    ).toHaveLength(1);
+      screen.queryByRole("combobox", { name: "Select model" }),
+    ).not.toBeInTheDocument();
   });
 
   const thread = [question, calls, scanResult, reportWithView, answer()];
