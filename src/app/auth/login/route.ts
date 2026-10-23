@@ -3,8 +3,13 @@ import { BigulUnavailableError, ssoSessionId } from "@/lib/auth/bigul";
 import { ConfigError, getSsoConfig } from "@/lib/auth/config";
 import { safeNextPath } from "@/lib/auth/next-path";
 import { loginErrorRedirect, noStore } from "@/lib/auth/responses";
-import { stateCookie } from "@/lib/auth/session";
-import { createSsoState, serializeSsoState } from "@/lib/auth/sso-state";
+import { stateCookie, stateCookieName } from "@/lib/auth/session";
+import {
+  logTag,
+  parseSsoState,
+  reuseOrCreateSsoState,
+  serializeSsoState,
+} from "@/lib/auth/sso-state";
 
 export const runtime = "nodejs";
 
@@ -29,7 +34,13 @@ export async function GET(request: NextRequest) {
     throw error;
   }
 
-  const saved = createSsoState(next);
+  // A double tap must not replace the state the first tap sent to Bigul.
+  const pending = parseSsoState(request.cookies.get(stateCookieName())?.value);
+  const saved = reuseOrCreateSsoState(pending, next);
+  console.info("[bigul-auth] sign-in started", {
+    state: logTag(saved.state),
+    reused: saved.state === pending?.state,
+  });
   const target = new URL(sso.loginUrl);
   target.searchParams.set("app_key", sso.appKey);
   target.searchParams.set("sessionid", sessionId);

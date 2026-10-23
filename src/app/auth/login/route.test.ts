@@ -18,6 +18,7 @@ beforeEach(() => {
   vi.stubEnv("BIGUL_SSO_APP_KEY", "app-key-1");
   vi.mocked(ssoSessionId).mockResolvedValue("partner-session-1");
   vi.spyOn(console, "error").mockImplementation(() => {});
+  vi.spyOn(console, "info").mockImplementation(() => {});
 });
 
 afterEach(() => {
@@ -79,10 +80,49 @@ describe("GET /auth/login", () => {
     expect(cookie).not.toMatch(/Domain=/i);
   });
 
-  it("uses a fresh state every time", async () => {
+  it("uses a fresh state for each new sign-in", async () => {
     const first = savedState(await login()).value.state;
     const second = savedState(await login()).value.state;
     expect(first).not.toBe(second);
+  });
+
+  const withCookie = (cookie: string, query = "") =>
+    GET(
+      new NextRequest(`${ORIGIN}/auth/login${query}`, { headers: { cookie } }),
+    );
+
+  it("reuses a recent pending state on a second tap, with the new destination", async () => {
+    const first = savedState(await login("?next=%2Fa"));
+    const response = await withCookie(first.cookie.split(";")[0], "?next=%2Fb");
+    const target = new URL(response.headers.get("location")!);
+    expect(target.searchParams.get("state")).toBe(first.value.state);
+    const second = savedState(response).value;
+    expect(second).toMatchObject({
+      state: first.value.state,
+      sid: first.value.sid,
+      iat: first.value.iat,
+      next: "/b",
+    });
+  });
+
+  it("starts over when the pending state is more than five minutes old", async () => {
+    const old = JSON.stringify({
+      state: "old-state",
+      sid: "0123456789abcdef0123456789abcdef",
+      next: "/",
+      iat: Math.floor(Date.now() / 1000) - 301,
+    });
+    const response = await withCookie(
+      `bigul_sso_state=${encodeURIComponent(old)}`,
+    );
+    const state = savedState(response).value.state;
+    expect(state).not.toBe("old-state");
+    expect(state).toMatch(/^[A-Za-z0-9_-]{43}$/);
+  });
+
+  it("ignores a malformed pending state", async () => {
+    const response = await withCookie("bigul_sso_state=not-json");
+    expect(savedState(response).value.state).toMatch(/^[A-Za-z0-9_-]{43}$/);
   });
 
   it("uses the configured Bigul login URL", async () => {

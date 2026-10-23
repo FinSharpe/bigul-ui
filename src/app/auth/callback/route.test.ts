@@ -60,6 +60,8 @@ beforeEach(() => {
   );
   vi.stubGlobal("fetch", fetchMock);
   vi.spyOn(console, "error").mockImplementation(() => {});
+  vi.spyOn(console, "info").mockImplementation(() => {});
+  vi.spyOn(console, "warn").mockImplementation(() => {});
 });
 
 afterEach(() => {
@@ -265,6 +267,73 @@ describe("GET /auth/callback", () => {
   ])("reports %s as a state error", async (_, query, cookie) => {
     expectLoginError(await callback(query, cookie), "state");
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  const failureLog = () =>
+    vi
+      .mocked(console.warn)
+      .mock.calls.find(
+        ([message]) => message === "[bigul-auth] sign-in failed",
+      )?.[1] as Record<string, unknown> | undefined;
+
+  it.each([
+    [
+      "no_state_param",
+      `login_success=true&userid=Y09042341&token=${TOKEN}`,
+      stateCookie(),
+    ],
+    ["no_cookie", success(), null],
+    ["malformed", success(), "bigul_sso_state=not-json"],
+    [
+      "expired",
+      success(),
+      stateCookie({ iat: Math.floor(Date.now() / 1000) - 601 }),
+    ],
+    ["mismatch", success().replace(STATE, `${STATE}x`), stateCookie()],
+  ])("logs why the state was refused: %s", async (reason, query, cookie) => {
+    await callback(query, cookie);
+    expect(failureLog()).toMatchObject({ code: "state", reason });
+  });
+
+  it("logs a mismatch as short tags of both states, never the values or the token", async () => {
+    await callback(success().replace(STATE, `${STATE}x`));
+    const log = failureLog()!;
+    expect(log).toMatchObject({
+      received: expect.stringMatching(/^[0-9a-f]{10}$/),
+      saved: expect.stringMatching(/^[0-9a-f]{10}$/),
+      client: expect.stringMatching(/^[0-9a-f]{10}$/),
+      ageSeconds: expect.any(Number),
+    });
+    expect(log.received).not.toBe(log.saved);
+    const logged = JSON.stringify(vi.mocked(console.warn).mock.calls);
+    expect(logged).not.toContain(STATE);
+    expect(logged).not.toContain(TOKEN);
+    expect(logged).not.toContain("Y09042341");
+  });
+
+  it("logs Bigul's non-success status as a plain word only", async () => {
+    await callback(`status=failed&state=${STATE}&client_code=Y09042341`);
+    expect(failureLog()).toMatchObject({
+      code: "denied",
+      reason: "not_success",
+      status: "failed",
+    });
+    await callback(`status=%3Cscript%3E&state=${STATE}`);
+    expect(vi.mocked(console.warn).mock.calls.at(-1)?.[1]).toMatchObject({
+      status: "other",
+    });
+  });
+
+  it("logs a successful sign-in without the client code or token", async () => {
+    await callback(success());
+    const ok = vi
+      .mocked(console.info)
+      .mock.calls.find(([message]) => message === "[bigul-auth] sign-in ok");
+    expect(ok?.[1]).toMatchObject({
+      client: expect.stringMatching(/^[0-9a-f]{10}$/),
+    });
+    expect(JSON.stringify(ok)).not.toContain("Y09042341");
+    expect(JSON.stringify(ok)).not.toContain(TOKEN);
   });
 
   it("keeps the saved destination on failure", async () => {
