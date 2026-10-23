@@ -14,5 +14,11 @@ export default defineConfig({
     globals: true,
     setupFiles: ["./vitest.setup.ts"],
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
+    server: {
+      deps: {
+        // Imports "next/server" without an extension, which Node's ESM loader rejects.
+        inline: ["langgraph-nextjs-api-passthrough"],
+      },
+    },
   },
 });

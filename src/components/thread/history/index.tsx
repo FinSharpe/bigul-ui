@@ -1,11 +1,13 @@
 import { useEffect, useState, type ReactNode } from "react";
 import type { Thread } from "@langchain/langgraph-sdk";
 import { parseAsBoolean, useQueryState } from "nuqs";
-import { Plus, Search, X } from "lucide-react";
+import { Plus, Search, UserRound, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useSession } from "@/providers/Session";
 import { useThreads } from "@/providers/Thread";
+import { SignOutButton } from "../sign-out-button";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import {
   filterThreadHistory,
@@ -153,6 +155,7 @@ export default function ThreadHistory({
   const [query, setQuery] = useState("");
   const { refreshThreads, threads, threadsLoading, threadsError } =
     useThreads();
+  const { clientCode } = useSession();
 
   useEffect(() => {
     if (chatHistoryOpen) void refreshThreads();
@@ -275,6 +278,19 @@ export default function ThreadHistory({
           />
         )}
       </div>
+      {clientCode && (
+        <div className="border-border flex shrink-0 items-center gap-2 border-t py-2 pr-2 pl-4">
+          <UserRound
+            className="text-muted-foreground size-4 shrink-0"
+            aria-hidden="true"
+          />
+          <p className="min-w-0 flex-1 truncate text-xs">
+            <span className="text-muted-foreground">Signed in as </span>
+            <span className="font-medium">{clientCode}</span>
+          </p>
+          <SignOutButton variant="text" />
+        </div>
+      )}
       {threadsLoading && threads.length > 0 && (
         <span
           className="sr-only"

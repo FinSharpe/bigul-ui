@@ -35,6 +35,7 @@ import { useThreads } from "./Thread";
 import { toast } from "sonner";
 import { PlannerModels } from "@/configs/models";
 import { createClient } from "./client";
+import { authFetch } from "@/lib/auth-fetch";
 import {
   currentTurnId,
   dropsRenderedContent,
@@ -160,11 +161,12 @@ async function checkGraphStatus(
     if (apiKey) headers.set("X-Api-Key", apiKey);
     if (authScheme) headers.set("X-Auth-Scheme", authScheme);
 
-    const res = await fetch(`${apiUrl}/info`, {
+    const res = await authFetch(`${apiUrl}/info`, {
       headers,
     });
 
-    return res.ok;
+    // 401: authFetch is already sending the user to sign in.
+    return res.ok || res.status === 401;
   } catch (e) {
     console.error(e);
     return false;
@@ -393,7 +395,7 @@ const StreamSession = ({
       const headers = new Headers(init?.headers);
       if (apiKey) headers.set("X-Api-Key", apiKey);
       if (authScheme) headers.set("X-Auth-Scheme", authScheme);
-      const response = await fetch(`${apiUrl.replace(/\/$/, "")}${path}`, {
+      const response = await authFetch(`${apiUrl.replace(/\/$/, "")}${path}`, {
         ...init,
         headers,
       });
@@ -739,13 +741,11 @@ export const StreamProvider: React.FC<{ children: ReactNode }> = ({
         <div className="animate-in fade-in-0 zoom-in-95 bg-background flex max-w-3xl flex-col rounded-lg border shadow-lg">
           <div className="mt-14 flex flex-col gap-2 border-b p-6">
             <div className="flex flex-col items-start gap-2">
-              <h1 className="text-xl font-semibold tracking-tight">
-                Agent Chat
-              </h1>
+              <h1 className="text-xl font-semibold tracking-tight">Mayra AI</h1>
             </div>
             <p className="text-muted-foreground">
-              Welcome to Agent Chat! Before you get started, you need to enter
-              the URL of the deployment and the assistant / graph ID.
+              Welcome to Mayra AI! Before you get started, you need to enter the
+              URL of the deployment and the assistant / graph ID.
             </p>
           </div>
           <form
