@@ -39,13 +39,9 @@ import {
   ArtifactTitle,
   useArtifactContext,
 } from "./artifact";
-import { ModelSwitcher } from "./ModelSwitcher";
 import { SuggestedPrompts, FollowUpPrompts } from "./suggested-prompts";
 import { BrandMark } from "@/components/brand-mark";
-import { useChatModels } from "@/hooks/use-chat-models";
 import { getThreadTitle } from "@/lib/thread-history";
-import { hasImageContent, precedingHuman } from "@/lib/chat-submission";
-import { toast } from "sonner";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import {
   Sheet,
@@ -109,10 +105,9 @@ export function Thread() {
   const stream = useStreamContext();
   const { threads } = useThreads();
   const isLargeScreen = useMediaQuery("(min-width: 1024px)");
-  const models = useChatModels(stream.apiUrl, threadId, stream.requestApi);
   const messages = stream.messages;
   const isLoading = stream.isLoading;
-  const canSend = !isLoading && !stream.isThreadLoading && !models.unavailable;
+  const canSend = !isLoading && !stream.isThreadLoading;
   const chatStarted = !!threadId || !!messages.length;
   const currentThread = threads.find((t) => t.thread_id === threadId);
   const title = currentThread ? getThreadTitle(currentThread) : "Mayra AI";
@@ -146,7 +141,6 @@ export function Thread() {
 
   const openConversation = (id: string | null) => {
     if (id === threadId && id !== null) return;
-    models.cancelPendingSelection();
     setInput("");
     setContentBlocks([]);
     closeArtifact();
@@ -155,24 +149,9 @@ export function Thread() {
     if (!isLargeScreen) void setChatHistoryOpen(false);
   };
 
-  const validateSubmission = (message?: Message) => {
-    if (isLoading || stream.isThreadLoading) return false;
-    if (models.unavailable) {
-      toast.error("This model is unavailable. Choose another model or Auto.");
-      return false;
-    }
-    if (!models.supportsImages && hasImageContent(message?.content)) {
-      toast.error("Choose a model that supports images to send this turn.");
-      return false;
-    }
-    return true;
-  };
+  const validateSubmission = () => !isLoading && !stream.isThreadLoading;
   const send = (text: string, attachments = contentBlocks) => {
     if (!canSend || (!text.trim() && !attachments.length)) return;
-    if (!models.supportsImages && hasImageContent(attachments)) {
-      toast.error("Choose a model that supports images or remove the image.");
-      return;
-    }
     const human: Message = {
       id: uuidv4(),
       type: "human",
@@ -188,7 +167,6 @@ export function Thread() {
     void stream.submit(
       { messages: [...toolMessages, human], context },
       {
-        ...models.submissionOptions(),
         streamMode: ["values"],
         streamSubgraphs: true,
         streamResumable: true,
@@ -207,13 +185,9 @@ export function Thread() {
     event.preventDefault();
     send(input);
   };
-  const handleRegenerate = (
-    checkpoint: Checkpoint | null | undefined,
-    message?: Message,
-  ) => {
-    if (!validateSubmission(precedingHuman(messages, message))) return;
+  const handleRegenerate = (checkpoint: Checkpoint | null | undefined) => {
+    if (!validateSubmission()) return;
     void stream.submit(undefined, {
-      ...models.submissionOptions(),
       checkpoint,
       streamMode: ["values"],
       streamSubgraphs: true,
@@ -227,8 +201,8 @@ export function Thread() {
         void stream.reloadConversation();
       return;
     }
-    if (!validateSubmission(precedingHuman(messages))) return;
-    void stream.retry(models.submissionOptions());
+    if (!validateSubmission()) return;
+    void stream.retry();
   };
 
   return (
@@ -319,7 +293,6 @@ export function Thread() {
                 messages={messages}
                 isLoading={isLoading || stream.isThreadLoading}
                 handleRegenerate={handleRegenerate}
-                getSubmitOptions={models.submissionOptions}
                 canSubmitMessage={validateSubmission}
               />
             )}
@@ -357,11 +330,7 @@ export function Thread() {
                 type="button"
                 variant="ghost"
                 className="text-primary min-h-11 shrink-0 rounded-full text-xs"
-                disabled={
-                  isLoading ||
-                  stream.isThreadLoading ||
-                  (!!messages.length && models.unavailable)
-                }
+                disabled={isLoading || stream.isThreadLoading}
                 onClick={handleRetry}
               >
                 Try again
@@ -393,14 +362,6 @@ export function Thread() {
               Reconnecting… Your answer will continue here.
             </p>
           )}
-          {models.unavailable && (
-            <p
-              className="text-destructive mb-2 px-3 text-xs"
-              role="status"
-            >
-              This model is unavailable. Choose another model or Auto to send.
-            </p>
-          )}
           <div
             ref={dropRef}
             className={cn(
@@ -417,12 +378,6 @@ export function Thread() {
                 onRemove={removeBlock}
               />
               <div className="flex min-h-12 items-center gap-1 pr-1 pl-2">
-                <ModelSwitcher
-                  value={models.value}
-                  onValueChange={models.select}
-                  options={models.options}
-                  disabled={isLoading || stream.isThreadLoading}
-                />
                 <TooltipIconButton
                   type="button"
                   tooltip="Upload PDF or image"
