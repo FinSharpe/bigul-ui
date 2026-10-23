@@ -23,6 +23,7 @@ Only verified Bigul clients can use the assistant, and each client sees only the
    - `BIGUL_VERIFY_WITH=margin` switches the second step to a one-share margin calculation (`POST /order/user-margin`, nothing placed), the interim check used before the profile endpoint was confirmed.
 
    Bigul's token is used only for that check and then discarded.
+
 3. On success the app sets `bigul_session` (`__Host-bigul_session` in production), an httpOnly cookie holding an RS256 JWT (`sub` = client code, no other personal data). It expires at 00:30 IST, when Bigul's own tokens do. The state cookie is `bigul_sso_state` (`__Host-bigul_sso_state` in production).
 4. `src/proxy.ts` sends signed-out page visits to `/login` and answers signed-out `/api/*` calls with 401. The `/api` route checks the session again, strips client credentials and sends `authorization: Bearer <session JWT>` to LangGraph. bigul-backend verifies it and scopes threads to the client. If LangGraph rejects a session the app accepts, the proxy answers 502 `{"error":"upstream_auth"}` and logs a hint (check `BIGUL_SESSION_PUBLIC_KEY`, `BIGUL_SESSION_ISSUER` and `BIGUL_SESSION_AUDIENCE` on both sides); only the app's own 401 sends the browser to sign in.
 5. Sign out (chat header or conversation list) clears the app's `lg:*` browser storage and posts to `/auth/logout`.
