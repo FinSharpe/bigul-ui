@@ -30,7 +30,6 @@ import {
 import { useQueryState, parseAsBoolean } from "nuqs";
 import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
 import ThreadHistory from "./history";
-import { GitHubSVG } from "../icons/github";
 import { useFileUpload } from "@/hooks/use-file-upload";
 import { ContentBlocksPreview } from "./ContentBlocksPreview";
 import {
@@ -235,24 +234,12 @@ export function Thread() {
             >
               <PanelLeft className="size-5" />
             </TooltipIconButton>
-            <BrandMark className="size-6" />
-            <h2 className="truncate text-sm font-medium">{title}</h2>
+            <BrandMark className="h-7" />
+            {currentThread && (
+              <h2 className="truncate text-sm font-medium">{title}</h2>
+            )}
           </div>
           <div className="flex shrink-0 items-center gap-1">
-            {process.env.NEXT_PUBLIC_GITHUB_REPO_URL && (
-              <a
-                href={process.env.NEXT_PUBLIC_GITHUB_REPO_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Open GitHub repository"
-                className="text-muted-foreground hover:bg-accent hidden size-11 items-center justify-center rounded-full sm:flex"
-              >
-                <GitHubSVG
-                  width="18"
-                  height="18"
-                />
-              </a>
-            )}
             <TooltipIconButton
               tooltip="New chat"
               variant="ghost"

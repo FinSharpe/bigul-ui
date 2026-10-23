@@ -44,8 +44,8 @@ export default async function LoginPage({
   return (
     <main className="bg-muted flex min-h-dvh items-center justify-center px-4 py-10">
       <div className="bg-background w-full max-w-sm rounded-xl border p-8 text-center shadow-[var(--chat-card-shadow)]">
-        <BrandMark className="mx-auto size-14" />
-        <h1 className="mt-5 text-xl leading-tight font-semibold">Mayra AI</h1>
+        <BrandMark className="mx-auto h-14" />
+        <h1 className="sr-only">Mayra AI</h1>
         <p className="text-muted-foreground mt-2 text-sm">
           Sign in with your Bigul account to continue.
         </p>
