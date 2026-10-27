@@ -12,6 +12,7 @@ export const API_BASE = "https://bigul.test";
 
 export type ConnectOutcome =
   | "callback"
+  | "callback-with-state"
   | "docs-shape"
   | "login-page"
   | "failed-status"
@@ -104,7 +105,13 @@ export function fakeBigul(options: FakeBigulOptions = {}) {
       const handBack = (base: string, query: string) =>
         redirect(`${base}?${query}`);
       switch (outcome) {
+        // As production does: no state on the hand-back.
         case "callback":
+          return handBack(
+            `${OUR_SITE}/auth/callback`,
+            `status=success&access_token=${token}&client_code=${clientCode}%20`,
+          );
+        case "callback-with-state":
           return handBack(
             `${OUR_SITE}/auth/callback`,
             `status=success&state=${state}&access_token=${token}&client_code=${clientCode}%20`,

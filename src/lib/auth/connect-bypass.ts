@@ -88,8 +88,13 @@ function readHandBack(
   const succeeded =
     query.get("status") === "success" || query.get("login_success") === "true";
   if (!succeeded) throw new ConnectRefusedError("Connect refused the token");
+  // Connect's re-login-free hand-back carries no state. The state guards a
+  // browser round trip against forged redirects; here the hand-back is read
+  // straight from Connect's own TLS response to this server, so a missing
+  // state is fine. One that is present must still be ours.
   const returned = query.get("state");
-  if (!returned || !sameState(returned, state)) throw new ConnectStateError();
+  if (returned !== undefined && !sameState(returned, state))
+    throw new ConnectStateError();
   // Client codes never contain "+"; Bigul pads them with a space.
   const clientCode = normalizeClientCode(
     (query.get("client_code") ?? query.get("userid"))?.replace(/\+/g, " "),

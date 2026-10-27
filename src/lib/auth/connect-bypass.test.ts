@@ -141,6 +141,19 @@ describe("exchangeAppToken", () => {
     await expect(exchange()).rejects.toBeInstanceOf(ConnectStateError);
   });
 
+  it("accepts the hand-back without a state, as production sends it, and one with our state", async () => {
+    let fake = setup("callback");
+    await expect(exchange()).resolves.toEqual({
+      clientCode: "TEST0001",
+      accessToken: fake.accessToken,
+    });
+    fake = setup("callback-with-state");
+    await expect(exchange()).resolves.toEqual({
+      clientCode: "TEST0001",
+      accessToken: fake.accessToken,
+    });
+  });
+
   it.each(["503", "429"] as const)(
     "reports a %s from Connect as unavailable",
     async (outcome) => {

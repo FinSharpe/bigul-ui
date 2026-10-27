@@ -36,7 +36,7 @@ Only verified Bigul clients can use the assistant, and each client sees only the
 2. **The server runs Connect's seamless SSO bypass itself** (`src/lib/auth/connect-bypass.ts`).
    - It requests the usual Connect login link plus `platform` and `token`, then follows redirects only on Connect's origin (at most 5), with a cookie jar holding only Connect's cookies.
    - It stops at the first redirect off Connect without requesting it. That redirect must be the callback registered with Bigul (`BIGUL_SSO_REDIRECT_URL`, by default this site's `/auth/callback`).
-   - It checks the state and that the client code matches the one inside the app token, then verifies the returned client token exactly as the callback does (`verifyBigulLogin`).
+   - It checks the state (if Connect returns one; its re-login-free hand-back carries none) and that the client code matches the one inside the app token, then verifies the returned client token exactly as the callback does (`verifyBigulLogin`).
    - A refused token makes Connect show its login page; the server treats that as a refusal. The WebView never loads a Connect page.
    - The whole sign-in answers within 12 seconds. If Bigul is slow, the client still gets the error page and the previous session is still signed out.
 3. **Success:** the usual session cookie, plus `bigul_embedded` (`__Host-bigul_embedded` in production: httpOnly, 30 days, marks the app's WebView), then a 303 to `next`.
