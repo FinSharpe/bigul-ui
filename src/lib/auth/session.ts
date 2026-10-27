@@ -18,6 +18,14 @@ export const sessionCookieName = () =>
   secure() ? "__Host-bigul_session" : "bigul_session";
 export const stateCookieName = () =>
   secure() ? "__Host-bigul_sso_state" : "bigul_sso_state";
+// Set by /auth/mobile: this browser is the Bigul app's WebView, where the
+// client must never be shown a sign-in screen.
+export const embeddedCookieName = () =>
+  secure() ? "__Host-bigul_embedded" : "bigul_embedded";
+
+// Outlives the 00:30 IST session, so an expired session still knows it is
+// in the app; renewed on every handoff.
+export const EMBEDDED_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
 
 // 00:30 IST, when Bigul's own client tokens expire.
 const EXPIRY_HOUR_UTC = 19;
@@ -137,4 +145,27 @@ export function stateCookie(value: string) {
 // Same attributes as the live cookie, as __Host- requires.
 export function expiredStateCookie() {
   return { ...stateCookie(""), maxAge: 0, expires: new Date(0) };
+}
+
+export function embeddedCookie() {
+  return {
+    name: embeddedCookieName(),
+    value: "1",
+    httpOnly: true,
+    secure: secure(),
+    sameSite: "lax" as const,
+    path: "/",
+    maxAge: EMBEDDED_MAX_AGE_SECONDS,
+  };
+}
+
+/** The request comes from the Bigul app's WebView (route handlers). */
+export function hasEmbeddedMarker(request: NextRequest): boolean {
+  return request.cookies.get(embeddedCookieName())?.value === "1";
+}
+
+/** The page is shown in the Bigul app's WebView (Server Components). */
+export async function isEmbedded(): Promise<boolean> {
+  const store = await cookies();
+  return store.get(embeddedCookieName())?.value === "1";
 }

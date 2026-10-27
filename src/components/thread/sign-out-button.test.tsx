@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { clearChatStorage } from "@/lib/chat-storage";
+import { SessionProvider } from "@/providers/Session";
 import { SignOutButton } from "./sign-out-button";
 
 beforeEach(() => {
@@ -68,4 +69,34 @@ describe("SignOutButton", () => {
       ).toBeNull();
     },
   );
+});
+
+describe("SignOutButton inside the Bigul app", () => {
+  it.each(["icon", "text"] as const)(
+    "%s variant is hidden: the app owns sign-out",
+    (variant) => {
+      render(
+        <SessionProvider
+          clientCode="Y1"
+          embedded
+        >
+          <SignOutButton variant={variant} />
+        </SessionProvider>,
+      );
+      expect(
+        screen.queryByRole("button", { name: "Sign out" }),
+      ).not.toBeInTheDocument();
+    },
+  );
+
+  it("is shown for a signed-in web client", () => {
+    render(
+      <SessionProvider clientCode="Y1">
+        <SignOutButton variant="text" />
+      </SessionProvider>,
+    );
+    expect(
+      screen.getByRole("button", { name: "Sign out" }),
+    ).toBeInTheDocument();
+  });
 });

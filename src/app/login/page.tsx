@@ -5,7 +5,7 @@ import { BrandMark } from "@/components/brand-mark";
 import { Input } from "@/components/ui/input";
 import { isDevLoginEnabled } from "@/lib/auth/config";
 import { safeNextPath } from "@/lib/auth/next-path";
-import { getServerSession } from "@/lib/auth/session";
+import { getServerSession, isEmbedded } from "@/lib/auth/session";
 
 export const metadata: Metadata = {
   title: "Sign in",
@@ -36,6 +36,14 @@ export default async function LoginPage({
   if (await getServerSession()) redirect(next);
 
   const error = first(params.error);
+  // Inside the Bigul app the client must never see a sign-in screen: the
+  // app intercepts these pages and signs the client in again itself.
+  if (await isEmbedded())
+    redirect(
+      error && Object.hasOwn(ERROR_MESSAGES, error)
+        ? `/auth/mobile/error?code=${error}`
+        : `/auth/mobile/expired?next=${encodeURIComponent(next)}`,
+    );
   const message =
     error && Object.hasOwn(ERROR_MESSAGES, error)
       ? ERROR_MESSAGES[error]

@@ -10,11 +10,17 @@ import React from "react";
 
 export function ChatApp({
   clientCode,
+  embedded = false,
 }: {
   clientCode: string;
+  /** Shown inside the Bigul app's WebView (no sign-out there). */
+  embedded?: boolean;
 }): React.ReactNode {
   return (
-    <SessionProvider clientCode={clientCode}>
+    <SessionProvider
+      clientCode={clientCode}
+      embedded={embedded}
+    >
       <React.Suspense
         fallback={
           <div

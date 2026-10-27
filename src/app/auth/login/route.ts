@@ -3,7 +3,11 @@ import { BigulUnavailableError, ssoSessionId } from "@/lib/auth/bigul";
 import { ConfigError, getSsoConfig } from "@/lib/auth/config";
 import { safeNextPath } from "@/lib/auth/next-path";
 import { loginErrorRedirect, noStore } from "@/lib/auth/responses";
-import { stateCookie, stateCookieName } from "@/lib/auth/session";
+import {
+  hasEmbeddedMarker,
+  stateCookie,
+  stateCookieName,
+} from "@/lib/auth/session";
 import {
   logTag,
   parseSsoState,
@@ -16,6 +20,12 @@ export const runtime = "nodejs";
 /** Starts Bigul SSO: remembers state in a short-lived cookie, then sends the browser to Bigul. */
 export async function GET(request: NextRequest) {
   const next = safeNextPath(request.nextUrl.searchParams.get("next"));
+  // Inside the Bigul app, never open Connect's login screen.
+  if (hasEmbeddedMarker(request)) {
+    const expired = new URL("/auth/mobile/expired", request.url);
+    if (next !== "/") expired.searchParams.set("next", next);
+    return noStore(NextResponse.redirect(expired, 303));
+  }
   let sso;
   let sessionId;
   try {

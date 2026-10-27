@@ -4,6 +4,7 @@ import LoginPage from "./page";
 
 const mocks = vi.hoisted(() => ({
   session: null as { clientCode: string } | null,
+  embedded: false,
   redirect: vi.fn((url: string) => {
     throw new Error(`NEXT_REDIRECT ${url}`);
   }),
@@ -11,11 +12,13 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/auth/session", () => ({
   getServerSession: async () => mocks.session,
+  isEmbedded: async () => mocks.embedded,
 }));
 vi.mock("next/navigation", () => ({ redirect: mocks.redirect }));
 
 beforeEach(() => {
   mocks.session = null;
+  mocks.embedded = false;
   mocks.redirect.mockClear();
 });
 
@@ -105,5 +108,50 @@ describe("login page", () => {
     expect(form).toHaveAttribute("action", "/auth/dev-login");
     expect(form).toHaveAttribute("method", "get");
     expect(form.querySelector('input[name="next"]')).toHaveValue("/?a=1");
+  });
+
+  describe("inside the Bigul app", () => {
+    beforeEach(() => {
+      mocks.embedded = true;
+    });
+
+    it("never shows the sign-in button: a signed-out client goes to the app's re-sign-in page", async () => {
+      await expect(renderLogin({ next: "/?threadId=abc" })).rejects.toThrow(
+        "NEXT_REDIRECT",
+      );
+      expect(mocks.redirect).toHaveBeenCalledWith(
+        `/auth/mobile/expired?next=${encodeURIComponent("/?threadId=abc")}`,
+      );
+      expect(
+        screen.queryByRole("link", { name: "Sign in with Bigul" }),
+      ).not.toBeInTheDocument();
+    });
+
+    it.each(["denied", "state", "verify", "unavailable", "config"])(
+      "sends the %s error to the mobile error page",
+      async (error) => {
+        await expect(renderLogin({ error })).rejects.toThrow("NEXT_REDIRECT");
+        expect(mocks.redirect).toHaveBeenCalledWith(
+          `/auth/mobile/error?code=${error}`,
+        );
+      },
+    );
+
+    it("treats an unrecognised error as an ended session", async () => {
+      await expect(renderLogin({ error: "__proto__" })).rejects.toThrow(
+        "NEXT_REDIRECT",
+      );
+      expect(mocks.redirect).toHaveBeenCalledWith(
+        "/auth/mobile/expired?next=%2F",
+      );
+    });
+
+    it("still sends a signed-in client straight on", async () => {
+      mocks.session = { clientCode: "Y1" };
+      await expect(renderLogin({ next: "/?threadId=abc" })).rejects.toThrow(
+        "NEXT_REDIRECT",
+      );
+      expect(mocks.redirect).toHaveBeenCalledWith("/?threadId=abc");
+    });
   });
 });

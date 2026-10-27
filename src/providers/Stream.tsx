@@ -32,6 +32,7 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { getApiKey, setApiKey as storeApiKey } from "@/lib/api-key";
 import { resolveApiUrl } from "@/lib/resolve-api-url";
 import { useThreads } from "./Thread";
+import { useSession } from "./Session";
 import { toast } from "sonner";
 import { PlannerModels } from "@/configs/models";
 import { createClient } from "./client";
@@ -205,13 +206,16 @@ const StreamSession = ({
     () => createClient(apiUrl, apiKey ?? undefined, authScheme),
     [apiUrl, apiKey, authScheme],
   );
+  // Per client too: on a shared phone, the next client must not pick up the
+  // previous client's run ids.
+  const { clientCode } = useSession();
   const storage = useMemo(
     () =>
       scopedRunStorage(
-        JSON.stringify([apiUrl, assistantId, authScheme, apiKey]),
+        JSON.stringify([apiUrl, assistantId, authScheme, apiKey, clientCode]),
         typeof window === "undefined" ? undefined : window.sessionStorage,
       ),
-    [apiUrl, assistantId, authScheme, apiKey],
+    [apiUrl, assistantId, authScheme, apiKey, clientCode],
   );
   const streamRef = useRef<StreamHandle | null>(null);
   const selectedThread = useRef(threadId);

@@ -164,3 +164,20 @@ describe("GET /auth/login when Bigul is unreachable", () => {
     expect(response.headers.getSetCookie()).toEqual([]);
   });
 });
+
+describe("GET /auth/login inside the Bigul app", () => {
+  it("never opens Connect's login screen; sends the app to re-sign-in instead", async () => {
+    const response = await GET(
+      new NextRequest(`${ORIGIN}/auth/login?next=%2F%3Fa%3D1`, {
+        headers: { cookie: "bigul_embedded=1" },
+      }),
+    );
+    expect(response.status).toBe(303);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    const location = new URL(response.headers.get("location")!);
+    expect(location.pathname).toBe("/auth/mobile/expired");
+    expect(location.searchParams.get("next")).toBe("/?a=1");
+    expect(response.headers.getSetCookie()).toEqual([]);
+    expect(ssoSessionId).not.toHaveBeenCalled();
+  });
+});
