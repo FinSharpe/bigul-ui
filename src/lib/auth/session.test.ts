@@ -13,7 +13,10 @@ import { SignJWT, decodeJwt, decodeProtectedHeader } from "jose";
 import { NextRequest } from "next/server";
 import { ConfigError } from "./config";
 import {
+  embeddedCookie,
+  embeddedCookieName,
   expiredSessionCookie,
+  hasEmbeddedMarker,
   expiredStateCookie,
   mintSession,
   nextSessionExpiry,
@@ -335,5 +338,36 @@ describe("cookie options", () => {
     expect(await read(`__Host-bigul_session=${token}`)).toMatchObject({
       clientCode: "Y1",
     });
+  });
+});
+
+describe("embedded marker", () => {
+  const request = (cookie?: string) =>
+    new NextRequest("http://localhost:3000/", {
+      headers: cookie ? { cookie } : {},
+    });
+
+  it("is an httpOnly, 30-day, site-wide cookie", () => {
+    expect(embeddedCookie()).toEqual({
+      name: "bigul_embedded",
+      value: "1",
+      httpOnly: true,
+      secure: false,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 30 * 24 * 60 * 60,
+    });
+  });
+
+  it("uses the __Host- prefix and Secure in production", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    expect(embeddedCookieName()).toBe("__Host-bigul_embedded");
+    expect(embeddedCookie()).toMatchObject({ secure: true, path: "/" });
+  });
+
+  it("is recognised only with the value 1", () => {
+    expect(hasEmbeddedMarker(request("bigul_embedded=1"))).toBe(true);
+    expect(hasEmbeddedMarker(request("bigul_embedded=0"))).toBe(false);
+    expect(hasEmbeddedMarker(request())).toBe(false);
   });
 });

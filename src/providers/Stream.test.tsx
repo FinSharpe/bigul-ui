@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { getApiKey, setApiKey } from "@/lib/api-key";
 import { StreamProvider, useStreamContext } from "./Stream";
+import { SessionProvider } from "./Session";
 import { ThreadProvider, useThreads } from "./Thread";
 
 const mocks = vi.hoisted(() => ({
@@ -289,6 +290,39 @@ describe("deployment and credential selection", () => {
       );
     },
   );
+});
+
+describe("run storage on a shared phone", () => {
+  function renderAs(clientCode: string) {
+    return render(
+      <SessionProvider clientCode={clientCode}>
+        <NuqsTestingAdapter
+          searchParams={{ apiUrl: TRUSTED_URL, assistantId: "agent" }}
+        >
+          <ThreadProvider>
+            <StreamProvider>
+              <ConnectedSession />
+            </StreamProvider>
+          </ThreadProvider>
+        </NuqsTestingAdapter>
+      </SessionProvider>,
+    );
+  }
+  const runStorage = () =>
+    mocks.useStream.mock.lastCall?.[0].reconnectOnMount() as Storage;
+
+  it("keeps each client's resumable run ids apart", () => {
+    const first = renderAs("Y0000000A");
+    runStorage().setItem("lg:stream:thread-1", "run-of-A");
+    first.unmount();
+
+    const second = renderAs("Y0000000B");
+    expect(runStorage().getItem("lg:stream:thread-1")).toBeNull();
+    second.unmount();
+
+    renderAs("Y0000000A");
+    expect(runStorage().getItem("lg:stream:thread-1")).toBe("run-of-A");
+  });
 });
 
 describe("conversation lifecycle", () => {

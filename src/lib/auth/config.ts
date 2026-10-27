@@ -98,16 +98,25 @@ export function getSessionConfig(): SessionConfig {
   };
 }
 
-export type SsoConfig = { loginUrl: string; appKey: string };
+export type SsoConfig = {
+  loginUrl: string;
+  appKey: string;
+  /** BIGUL_SSO_REDIRECT_URL: the callback registered with Bigul, if set. */
+  redirectUrl?: string;
+};
 
 export function getSsoConfig(): SsoConfig {
   const { BIGUL_SSO_APP_KEY } = requireEnv(["BIGUL_SSO_APP_KEY"]);
+  const redirectUrl = env("BIGUL_SSO_REDIRECT_URL");
   return {
     loginUrl: parseUrl(
       "BIGUL_SSO_LOGIN_URL",
       env("BIGUL_SSO_LOGIN_URL") ?? "https://connect.bigul.co/login",
     ),
     appKey: BIGUL_SSO_APP_KEY,
+    ...(redirectUrl
+      ? { redirectUrl: parseUrl("BIGUL_SSO_REDIRECT_URL", redirectUrl) }
+      : {}),
   };
 }
 
@@ -184,6 +193,25 @@ export function getBigulApiConfig(): BigulApiConfig {
     partnerPassword: values.BIGUL_PARTNER_PASSWORD,
     outboundProxyUrls: outboundProxyUrls(),
   };
+}
+
+const PLATFORMS = "BIGUL_SSO_PLATFORMS";
+
+/**
+ * BIGUL_SSO_PLATFORMS: comma-separated source-platform codes that
+ * /auth/mobile accepts from the Bigul app. Unset or blank: mobile
+ * sign-in is off and /auth/mobile answers with a config error.
+ */
+export function getMobilePlatforms(): string[] {
+  const raw = env(PLATFORMS);
+  if (!raw) throw new ConfigError([PLATFORMS]);
+  const codes = raw.split(",").map((code) => code.trim());
+  if (codes.some((code) => !/^\d{1,3}$/.test(code)))
+    throw new ConfigError(
+      [PLATFORMS],
+      `${PLATFORMS} must be comma-separated numeric codes`,
+    );
+  return codes;
 }
 
 /** /auth/dev-login works only under `next dev` with AUTH_DEV_LOGIN=true. */

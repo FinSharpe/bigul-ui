@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ConfigError, getBigulApiConfig } from "./config";
+import { ConfigError, getBigulApiConfig, getMobilePlatforms } from "./config";
 import { BLANK_AUTH_ENV } from "./test-keys";
 
 const NAME = "BIGUL_OUTBOUND_PROXY_URLS";
@@ -104,4 +104,21 @@ describe(NAME, () => {
         expect(shown).not.toContain(part);
     },
   );
+});
+
+describe("BIGUL_SSO_PLATFORMS", () => {
+  it("lists the allowed platform codes, trimmed", () => {
+    vi.stubEnv("BIGUL_SSO_PLATFORMS", " 7 ,9");
+    expect(getMobilePlatforms()).toEqual(["7", "9"]);
+  });
+
+  it.each([
+    ["unset", undefined],
+    ["blank", "  "],
+    ["not numeric", "7,app"],
+    ["an empty entry", "7,,9"],
+  ])("is a config error when %s", (_, value) => {
+    vi.stubEnv("BIGUL_SSO_PLATFORMS", value);
+    expect(() => getMobilePlatforms()).toThrow(ConfigError);
+  });
 });

@@ -14,6 +14,8 @@ export const BLANK_AUTH_ENV: Record<string, string> = {
   BIGUL_SESSION_AUDIENCE: "",
   BIGUL_SSO_LOGIN_URL: "",
   BIGUL_SSO_APP_KEY: "",
+  BIGUL_SSO_PLATFORMS: "",
+  BIGUL_SSO_REDIRECT_URL: "",
   BIGUL_API_BASE_URL: "",
   BIGUL_API_SOURCE: "",
   BIGUL_API_KEY: "",

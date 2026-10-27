@@ -59,3 +59,19 @@ describe("POST /auth/logout", () => {
     expect(response.headers.getSetCookie()).toEqual([]);
   });
 });
+
+describe("POST /auth/logout inside the Bigul app", () => {
+  it("clears the session but keeps the app marker and avoids the sign-in page", async () => {
+    const response = await logout({
+      origin: "http://localhost:3000",
+      cookie: "bigul_embedded=1",
+    });
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe(
+      "http://localhost:3000/auth/mobile/expired",
+    );
+    const cookies = response.headers.getSetCookie();
+    expect(cookies).toHaveLength(1);
+    expect(cookies[0]).toMatch(/^bigul_session=;/);
+  });
+});

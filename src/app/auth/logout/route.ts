@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { noStore } from "@/lib/auth/responses";
-import { expiredSessionCookie } from "@/lib/auth/session";
+import { expiredSessionCookie, hasEmbeddedMarker } from "@/lib/auth/session";
 
 export const runtime = "nodejs";
 
@@ -23,7 +23,9 @@ function isSameOrigin(request: NextRequest): boolean {
 export async function POST(request: NextRequest) {
   if (!isSameOrigin(request))
     return noStore(NextResponse.json({ error: "forbidden" }, { status: 403 }));
-  const response = NextResponse.redirect(new URL("/login", request.url), 303);
+  // Inside the Bigul app the app owns sign-out; never land on our sign-in page.
+  const target = hasEmbeddedMarker(request) ? "/auth/mobile/expired" : "/login";
+  const response = NextResponse.redirect(new URL(target, request.url), 303);
   response.cookies.set(expiredSessionCookie());
   return noStore(response);
 }

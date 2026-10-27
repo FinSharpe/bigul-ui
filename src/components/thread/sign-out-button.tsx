@@ -2,9 +2,13 @@ import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { clearChatStorage } from "@/lib/chat-storage";
 import { cn } from "@/lib/utils";
+import { useSession } from "@/providers/Session";
 import { TooltipIconButton } from "./tooltip-icon-button";
 
-/** A real form POST, so sign-out works before hydration too. */
+/**
+ * A real form POST, so sign-out works before hydration too. Hidden inside
+ * the Bigul app, which owns sign-in and sign-out.
+ */
 export function SignOutButton({
   variant,
   className,
@@ -12,6 +16,8 @@ export function SignOutButton({
   variant: "icon" | "text";
   className?: string;
 }) {
+  const { embedded } = useSession();
+  if (embedded) return null;
   return (
     <form
       method="post"
