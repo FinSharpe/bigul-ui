@@ -25,6 +25,9 @@
   --negative-container: #fff1f2;
   --positive: #047857;
   --surface-subtle: #f5f6f8;
+  /* The brand mint for quiet buttons on white (New chat, attach, avatar). */
+  --mint: #dff9ef;
+  --mint-foreground: #0a1f4d;
   --brand-gradient: linear-gradient(330deg, #0a1f4d 0%, #063baa 100%);
   --chat-card-shadow:
     0 1px 2px rgb(10 31 77 / 2%), 0 8px 24px -12px rgb(10 31 77 / 8%);
@@ -69,6 +72,8 @@
   --negative-container: #351c2c;
   --positive: #6ee7b7;
   --surface-subtle: rgb(255 255 255 / 4%);
+  --mint: #1b3a2e;
+  --mint-foreground: #6ee7b7;
   --border: rgb(6 59 170 / 25%);
   --input: #22335c;
   --ring: #8fb4ff;
@@ -104,6 +109,8 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-mint: var(--mint);
+  --color-mint-foreground: var(--mint-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -158,14 +165,37 @@
   padding: 10px 13px;
   box-shadow: var(--chat-card-shadow);
 }
-.chat-composer {
-  border-radius: 28px;
-  background: var(--card);
-  border: 1px solid var(--border);
-  box-shadow: var(--chat-nav-shadow);
-}
-.chat-composer:focus-within {
-  border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
+/* In the components layer, so utilities (a drop target's dashed border)
+   can still override them. */
+@layer components {
+  /* The message box: one rounded bar on phones, a card on desktop. */
+  .chat-composer {
+    border-radius: 24px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    box-shadow: var(--chat-nav-shadow);
+  }
+  @media (min-width: 1024px) {
+    .chat-composer {
+      border-radius: 18px;
+      box-shadow: var(--chat-card-shadow);
+    }
+  }
+  .chat-composer:focus-within {
+    border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
+  }
+  .brand-gradient {
+    background: var(--brand-gradient);
+  }
+  /* A quiet row or icon button that tints on hover only. */
+  .hover-tint {
+    transition: background-color 0.2s ease;
+  }
+  @media (hover: hover) {
+    .hover-tint:hover {
+      background-color: var(--secondary);
+    }
+  }
 }
 .chat-scroll {
   scrollbar-width: thin;
