@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import type { Thread } from "@langchain/langgraph-sdk";
@@ -187,12 +187,37 @@ describe("conversation history", () => {
           </SessionProvider>
         </NuqsTestingAdapter>,
       );
-      expect(screen.getByText("Y09042341")).toBeInTheDocument();
-      expect(screen.getByText(/Signed in as/)).toBeInTheDocument();
-      const signOut = screen.getByRole("button", { name: "Sign out" });
+      // Narrow screens read the drawer; the desktop sidebar is still in the
+      // DOM there, hidden by CSS that jsdom does not apply.
+      const scope = largeScreen
+        ? screen
+        : within(screen.getByRole("dialog", { name: "Conversations" }));
+      expect(scope.getByText("Y09042341")).toBeInTheDocument();
+      expect(scope.getByText(/Signed in as/)).toBeInTheDocument();
+      const signOut = scope.getByRole("button", { name: "Sign out" });
       expect(signOut.closest("form")).toHaveAttribute("action", "/auth/logout");
     },
   );
+
+  it("folds the desktop sidebar to a rail and remembers it", async () => {
+    const user = userEvent.setup();
+    const onNewChat = vi.fn();
+    const { unmount } = renderHistory({ onNewChat });
+    await user.click(screen.getByRole("button", { name: "Collapse sidebar" }));
+    expect(
+      screen.queryByRole("searchbox", { name: "Search chats" }),
+    ).not.toBeInTheDocument();
+    expect(window.localStorage.getItem("bigul:sidebar-collapsed")).toBe("true");
+    await user.click(screen.getByRole("button", { name: "New chat" }));
+    expect(onNewChat).toHaveBeenCalledOnce();
+
+    unmount();
+    renderHistory();
+    await user.click(screen.getByRole("button", { name: "Expand sidebar" }));
+    expect(
+      screen.getByRole("searchbox", { name: "Search chats" }),
+    ).toBeInTheDocument();
+  });
 
   it("shows no account footer outside a session", () => {
     renderHistory();

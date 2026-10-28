@@ -15,23 +15,13 @@ import { AssistantMessage, AssistantMessageLoading } from "./messages/ai";
 import { AssistantTranscript } from "./messages/assistant-transcript";
 import { ensureToolCallsHaveResponses } from "@/lib/ensure-tool-responses";
 import { TooltipIconButton } from "./tooltip-icon-button";
-import { SignOutButton } from "./sign-out-button";
-import {
-  ArrowDown,
-  ArrowUp,
-  PanelLeft,
-  SquarePen,
-  XIcon,
-  Plus,
-  Square,
-  LoaderCircle,
-  AlertCircle,
-} from "lucide-react";
+import { ArrowDown, XIcon, AlertCircle } from "lucide-react";
 import { useQueryState, parseAsBoolean } from "nuqs";
 import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
 import ThreadHistory from "./history";
 import { useFileUpload } from "@/hooks/use-file-upload";
-import { ContentBlocksPreview } from "./ContentBlocksPreview";
+import { ChatComposer } from "./chat-composer";
+import { ChatToolbar, MobileHeader } from "./mobile-chrome";
 import {
   useArtifactOpen,
   ArtifactContent,
@@ -39,7 +29,6 @@ import {
   useArtifactContext,
 } from "./artifact";
 import { SuggestedPrompts, FollowUpPrompts } from "./suggested-prompts";
-import { BrandMark } from "@/components/brand-mark";
 import { getThreadTitle } from "@/lib/thread-history";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import {
@@ -58,7 +47,7 @@ function StickyToBottomContent({ children }: { children: ReactNode }) {
     >
       <div
         ref={contentRef}
-        className="mx-auto flex min-h-full w-full max-w-[760px] flex-col gap-4 px-5 pt-6 pb-8 sm:px-8"
+        className="mx-auto flex min-h-full w-full max-w-[764px] flex-col gap-4 px-5 pt-6 pb-8 sm:px-8 lg:pt-12"
       >
         {children}
       </div>
@@ -100,7 +89,6 @@ export function Thread() {
     dragOver,
     handlePaste,
   } = useFileUpload();
-  const fileInputId = "chat-file-input";
   const stream = useStreamContext();
   const { threads } = useThreads();
   const isLargeScreen = useMediaQuery("(min-width: 1024px)");
@@ -109,7 +97,16 @@ export function Thread() {
   const canSend = !isLoading && !stream.isThreadLoading;
   const chatStarted = !!threadId || !!messages.length;
   const currentThread = threads.find((t) => t.thread_id === threadId);
-  const title = currentThread ? getThreadTitle(currentThread) : "Mayra AI";
+  const title = currentThread ? getThreadTitle(currentThread) : "Conversations";
+  const placeholder = stream.isThreadLoading
+    ? "Loading conversation…"
+    : isLoading
+      ? "Wait for Mayra…"
+      : chatStarted
+        ? "Ask a follow-up…"
+        : isLargeScreen
+          ? "Ask anything about stocks, funds or your money…"
+          : "Ask anything…";
   const hasNoAIOrToolMessages = !messages.some(
     (m) => m.type === "ai" || m.type === "tool",
   );
@@ -206,51 +203,22 @@ export function Thread() {
 
   return (
     <div className="bg-background relative flex h-dvh w-full overflow-hidden">
-      <div
-        className={cn(
-          "shrink-0 overflow-hidden transition-[width] duration-200 motion-reduce:transition-none",
-          chatHistoryOpen ? "w-0 lg:w-[290px]" : "w-0",
-        )}
-        inert={!chatHistoryOpen}
-      >
-        {/* Always mount: the narrow drawer portals outside this desktop wrapper. */}
-        <ThreadHistory
-          onNewChat={() => openConversation(null)}
-          onThreadSelect={openConversation}
-        />
-      </div>
+      {/* Desktop: the sidebar (nav + chats). Phones: the history drawer. */}
+      <ThreadHistory
+        onNewChat={() => openConversation(null)}
+        onThreadSelect={openConversation}
+      />
       <main
         className="relative flex min-w-0 flex-1 flex-col"
         aria-label="Chat"
       >
-        <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b px-3 sm:px-5">
-          <div className="flex min-w-0 items-center gap-1.5">
-            <TooltipIconButton
-              tooltip={chatHistoryOpen ? "Close history" : "Open history"}
-              variant="ghost"
-              className="size-11 rounded-full"
-              onClick={() => setChatHistoryOpen(!chatHistoryOpen)}
-              aria-expanded={chatHistoryOpen}
-            >
-              <PanelLeft className="size-5" />
-            </TooltipIconButton>
-            <BrandMark className="h-7" />
-            {currentThread && (
-              <h2 className="truncate text-sm font-medium">{title}</h2>
-            )}
-          </div>
-          <div className="flex shrink-0 items-center gap-1">
-            <TooltipIconButton
-              tooltip="New chat"
-              variant="ghost"
-              className="size-11 rounded-full"
-              onClick={() => openConversation(null)}
-            >
-              <SquarePen className="size-5" />
-            </TooltipIconButton>
-            <SignOutButton variant="icon" />
-          </div>
-        </header>
+        <MobileHeader />
+        <ChatToolbar
+          title={title}
+          historyOpen={chatHistoryOpen}
+          onOpenHistory={() => void setChatHistoryOpen(true)}
+          onNewChat={() => openConversation(null)}
+        />
         <StickToBottom
           key={threadId ?? "new"}
           className="relative min-h-0 flex-1 overflow-hidden"
@@ -300,7 +268,7 @@ export function Thread() {
           </StickyToBottomContent>
           <ScrollToBottom />
         </StickToBottom>
-        <div className="mx-auto w-full max-w-[760px] shrink-0 px-4 pt-1 pb-[max(16px,env(safe-area-inset-bottom))] sm:px-8 sm:pb-6">
+        <div className="mx-auto w-full max-w-[764px] shrink-0 px-5 pt-2 pb-[max(16px,env(safe-area-inset-bottom))] sm:px-8 lg:pb-6">
           {!!stream.error && (
             <div
               className="bg-muted text-foreground border-destructive/20 mb-3 flex items-center gap-3 rounded-[14px] border px-3.5 py-2.5 text-xs"
@@ -349,92 +317,23 @@ export function Thread() {
               Reconnecting… Your answer will continue here.
             </p>
           )}
-          <div
-            ref={dropRef}
-            className={cn(
-              "chat-composer relative",
-              dragOver && "border-primary bg-accent border-dashed",
-            )}
-          >
-            <form
-              onSubmit={handleSubmit}
-              aria-label="Message composer"
-            >
-              <ContentBlocksPreview
-                blocks={contentBlocks}
-                onRemove={removeBlock}
-              />
-              <div className="flex min-h-12 items-center gap-1 pr-1 pl-2">
-                <TooltipIconButton
-                  type="button"
-                  tooltip="Upload PDF or image"
-                  variant="ghost"
-                  className="text-muted-foreground size-11 shrink-0 rounded-full"
-                  onClick={() => document.getElementById(fileInputId)?.click()}
-                >
-                  <Plus className="size-5" />
-                </TooltipIconButton>
-                <input
-                  id={fileInputId}
-                  type="file"
-                  onChange={handleFileUpload}
-                  multiple
-                  accept="image/jpeg,image/png,image/gif,image/webp,application/pdf"
-                  className="hidden"
-                  aria-label="Upload PDF or image"
-                />
-                <textarea
-                  rows={1}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onPaste={handlePaste}
-                  onKeyDown={(e) => {
-                    if (
-                      e.key === "Enter" &&
-                      !e.shiftKey &&
-                      !e.metaKey &&
-                      !e.ctrlKey &&
-                      !e.nativeEvent.isComposing
-                    ) {
-                      e.preventDefault();
-                      e.currentTarget.form?.requestSubmit();
-                    }
-                  }}
-                  placeholder="Ask the analyst…"
-                  aria-label="Your message"
-                  className="text-foreground placeholder:text-muted-foreground field-sizing-content max-h-36 min-h-12 min-w-0 flex-1 resize-none border-0 bg-transparent py-[13px] text-sm leading-[1.55] outline-none focus-visible:outline-none"
-                />
-                <Button
-                  type={isLoading ? "button" : "submit"}
-                  aria-label={isLoading ? "Stop response" : "Send message"}
-                  title={isLoading ? "Stop" : "Send"}
-                  className={cn(
-                    "disabled:bg-secondary disabled:text-muted-foreground size-11 shrink-0 rounded-full p-0 shadow-none disabled:opacity-100",
-                    isLoading
-                      ? "text-destructive bg-[var(--negative-container)] hover:bg-[var(--negative-container)]"
-                      : "text-white [background:var(--brand-gradient)]",
-                  )}
-                  disabled={
-                    isLoading
-                      ? stream.runStatus === "stopping"
-                      : !canSend || (!input.trim() && !contentBlocks.length)
-                  }
-                  onClick={isLoading ? () => void stream.stop() : undefined}
-                >
-                  {stream.runStatus === "stopping" ? (
-                    <LoaderCircle className="size-4 animate-spin" />
-                  ) : isLoading ? (
-                    <Square className="size-4 fill-current" />
-                  ) : (
-                    <ArrowUp className="size-5" />
-                  )}
-                </Button>
-              </div>
-            </form>
-          </div>
-          <p className="text-muted-foreground mt-2 hidden px-1 text-right text-[10px] sm:block">
-            Enter to send · Shift + Enter for a new line
-          </p>
+          <ChatComposer
+            input={input}
+            onInputChange={setInput}
+            blocks={contentBlocks}
+            onRemoveBlock={removeBlock}
+            onFileInput={handleFileUpload}
+            onPaste={handlePaste}
+            onSubmit={handleSubmit}
+            onStop={() => void stream.stop()}
+            isEmpty={!chatStarted}
+            isLoading={isLoading}
+            isStopping={stream.runStatus === "stopping"}
+            canSend={canSend}
+            placeholder={placeholder}
+            dropRef={dropRef}
+            dragOver={dragOver}
+          />
         </div>
       </main>
       {artifactOpen && isLargeScreen && (
