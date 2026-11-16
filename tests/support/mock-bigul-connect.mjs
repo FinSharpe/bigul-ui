@@ -377,6 +377,13 @@ const apiRoutes = {
       ctx.outcome = "invalid source";
       return sendJson(response, 400, failure("Invalid source"));
     }
+    // Bigul (Nov 2026): the partner session goes in x-vendor-auth.
+    if (!liveSession(request.headers["x-vendor-auth"])) {
+      ctx.outcome = "missing or expired vendor session";
+      return sendJson(response, 401, {
+        message: "Session expired or user logged out",
+      });
+    }
     const requested = (url.searchParams.get("clientCode") ?? "")
       .trim()
       .toUpperCase();

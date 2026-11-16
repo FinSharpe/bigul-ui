@@ -50,6 +50,7 @@ let fetchMock: ReturnType<typeof vi.fn>;
 const path = (call: Call) =>
   new URL(call.url).pathname.replace(/^\/api\/v1/, "");
 const sessionCalls = () => calls.filter((call) => path(call) === SESSION_PATH);
+const profileCalls = () => calls.filter((call) => path(call) === PROFILE_PATH);
 
 function sessionOk(
   expiryTime = new Date(Date.now() + 3_600_000).toISOString(),
@@ -131,15 +132,15 @@ afterEach(() => {
 });
 
 describe("verifyBigulLogin", () => {
-  it("makes one GET to the client profile, as Bigul's contract, and returns the client code", async () => {
+  it("logs the partner in, then makes one GET to the client profile with the partner session in x-vendor-auth, and returns the client code", async () => {
     const timeout = vi.spyOn(AbortSignal, "timeout");
 
     await expect(verify(" y09042341 ")).resolves.toEqual({
       clientCode: "Y09042341",
     });
 
-    expect(calls).toHaveLength(1);
-    const [profile] = calls;
+    expect(calls.map(path)).toEqual([SESSION_PATH, PROFILE_PATH]);
+    const [profile] = profileCalls();
     expect(profile.url).toBe(
       `${BASE}${PROFILE_PATH}?clientCode=Y09042341&source=B2B`,
     );
@@ -147,6 +148,7 @@ describe("verifyBigulLogin", () => {
     expect(profile.init.headers).toEqual({
       "x-api-key": SECRETS.BIGUL_API_KEY,
       "x-api-secret": SECRETS.BIGUL_API_SECRET,
+      "x-vendor-auth": "partner-session-1",
       Authorization: `Bearer ${TOKEN}`,
     });
     expect(profile.init.body).toBeUndefined();
@@ -154,10 +156,29 @@ describe("verifyBigulLogin", () => {
     expect(timeout).toHaveBeenCalledWith(10_000);
   });
 
+  it("reuses the partner session from the SSO link for x-vendor-auth", async () => {
+    await expect(ssoSessionId()).resolves.toBe("partner-session-1");
+    await verify();
+    await verify();
+    expect(sessionCalls()).toHaveLength(1);
+    expect(profileCalls()).toHaveLength(2);
+    for (const profile of profileCalls())
+      expect(profile.init.headers).toMatchObject({
+        "x-vendor-auth": "partner-session-1",
+      });
+  });
+
+  it("reports Bigul unavailable when the partner login fails, without asking for the profile", async () => {
+    route({ session: htmlOutage });
+    await expect(verify()).rejects.toBeInstanceOf(BigulUnavailableError);
+    expect(profileCalls()).toHaveLength(0);
+  });
+
   it("defaults to Bigul's production partner API, /api/v1 included", async () => {
     vi.stubEnv("BIGUL_API_BASE_URL", "");
     await verify();
     expect(calls.map((call) => call.url)).toEqual([
+      `https://papi.bigul.co/api/v1${SESSION_PATH}`,
       `https://papi.bigul.co/api/v1${PROFILE_PATH}?clientCode=Y09042341&source=B2B`,
     ]);
   });
@@ -165,7 +186,7 @@ describe("verifyBigulLogin", () => {
   it("uses the configured source", async () => {
     vi.stubEnv("BIGUL_API_SOURCE", "B2C");
     await verify();
-    expect(calls[0].url).toContain("source=B2C");
+    expect(profileCalls()[0].url).toContain("source=B2C");
   });
 
   it.each([
@@ -201,7 +222,7 @@ describe("verifyBigulLogin", () => {
   it("calls Bigul directly with the global fetch when no relay is set", async () => {
     vi.stubEnv("BIGUL_OUTBOUND_PROXY_URLS", "  ");
     await expect(verify()).resolves.toEqual({ clientCode: "Y09042341" });
-    expect(Object.keys(calls[0].init).sort()).toEqual([
+    expect(Object.keys(profileCalls()[0].init).sort()).toEqual([
       "headers",
       "method",
       "signal",
@@ -474,6 +495,7 @@ describe("logging", () => {
     const echo = `token ${TOKEN} key ${SECRETS.BIGUL_API_KEY} secret ${SECRETS.BIGUL_API_SECRET}`;
     const verifyScenarios = [
       { profile: httpError(401, echo) },
+      { profile: httpError(401, "vendor session partner-session-1 expired") },
       { profile: () => htmlOutage() },
       { profile: () => Promise.reject(new TypeError(`fetch failed ${TOKEN}`)) },
       { profile: () => profileOk("OTHER") },
