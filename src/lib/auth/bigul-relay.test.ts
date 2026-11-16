@@ -189,6 +189,24 @@ const logged = () => vi.mocked(console.error).mock.calls;
 
 let globalFetch: ReturnType<typeof vi.fn>;
 
+/**
+ * Caches a partner session without relays (call before useRelays), so a test
+ * of the relays sees only the client profile call.
+ */
+async function primeSession() {
+  globalFetch.mockResolvedValueOnce(
+    Response.json({
+      status: true,
+      data: {
+        sessionId: "partner-session-1",
+        expiryTime: new Date(Date.now() + 3_600_000).toISOString(),
+      },
+    }),
+  );
+  await expect(ssoSessionId()).resolves.toBe("partner-session-1");
+  globalFetch.mockClear();
+}
+
 beforeEach(() => {
   resetPartnerSessionCache();
   for (const [name, value] of Object.entries(BLANK_AUTH_ENV))
@@ -216,12 +234,16 @@ describe("Bigul calls through relays", () => {
 
     await expect(verify()).resolves.toEqual({ clientCode: "Y09042341" });
 
-    // One CONNECT for the one call, naming Bigul's host; the relay resolves it.
-    expect(relay.tunnels).toEqual([
-      { authority: "papi.bigul.test:80", proxyAuthorization: RELAY_AUTH },
-    ]);
+    // One CONNECT per call (partner login, then the client profile), naming
+    // Bigul's host; the relay resolves it.
+    const tunnel = {
+      authority: "papi.bigul.test:80",
+      proxyAuthorization: RELAY_AUTH,
+    };
+    expect(relay.tunnels).toEqual([tunnel, tunnel]);
     expect(relay.plainRequests()).toBe(0);
     expect(bigul.requests.map((request) => request.path)).toEqual([
+      SESSION_PATH,
       `${PROFILE_PATH}?clientCode=Y09042341&source=B2B`,
     ]);
     for (const { headers } of bigul.requests) {
@@ -229,10 +251,10 @@ describe("Bigul calls through relays", () => {
       expect(headers["x-api-secret"]).toBe(SECRETS.BIGUL_API_SECRET);
       expect(headers["proxy-authorization"]).toBeUndefined();
     }
-    expect(bigul.requests[0].headers).toMatchObject({
+    expect(bigul.requests[1].headers).toMatchObject({
       authorization: `Bearer ${TOKEN}`,
+      "x-vendor-auth": "partner-session-1",
     });
-    expect(bigul.requests[0].headers["x-vendor-auth"]).toBeUndefined();
     expect(globalFetch).not.toHaveBeenCalled();
     expect(console.error).not.toHaveBeenCalled();
   });
@@ -256,6 +278,7 @@ describe("Bigul calls through relays", () => {
   it(
     "fails over to the secondary when the primary refuses connections",
     async () => {
+      await primeSession();
       const bigul = await startBigul();
       const secondary = await startRelay(bigul.port);
       useRelays(await deadRelayUrl(), secondary.url);
@@ -278,6 +301,7 @@ describe("Bigul calls through relays", () => {
     ["rejects its credentials", 407, "wrong-password", "tunnel" as const],
     ["refuses the tunnel", 403, RELAY_PASSWORD, { status: 403 }],
   ])("fails over when the primary %s", async (_, status, password, mode) => {
+    await primeSession();
     const bigul = await startBigul();
     const primary = await startRelay(bigul.port, mode);
     const secondary = await startRelay(bigul.port);
@@ -296,6 +320,7 @@ describe("Bigul calls through relays", () => {
   it(
     "fails over within the relay timeout when the primary never answers CONNECT",
     async () => {
+      await primeSession();
       const bigul = await startBigul();
       const primary = await startRelay(bigul.port, "silent");
       const secondary = await startRelay(bigul.port);
@@ -322,6 +347,7 @@ describe("Bigul calls through relays", () => {
   it(
     "reports Bigul unavailable when no relay can be reached",
     async () => {
+      await primeSession();
       useRelays(await deadRelayUrl(), await deadRelayUrl());
 
       await expect(verify()).rejects.toBeInstanceOf(BigulUnavailableError);
@@ -347,6 +373,7 @@ describe("Bigul calls through relays", () => {
   ])(
     "does not fail over when Bigul answers with %s",
     async (_, status, error) => {
+      await primeSession();
       const bigul = await startBigul({
         profile: () => ({ status, body: { status: false, message: "No" } }),
       });
@@ -365,6 +392,7 @@ describe("Bigul calls through relays", () => {
   it(
     "does not fail over when Bigul is slower than the relay timeout",
     async () => {
+      await primeSession();
       const bigul = await startBigul({
         profile: () => ({
           status: 200,
@@ -387,6 +415,7 @@ describe("Bigul calls through relays", () => {
 
   it("keeps TLS end to end: the relay only carries the encrypted stream", async () => {
     vi.stubEnv("BIGUL_API_BASE_URL", `https://papi.bigul.test${API}`);
+    await primeSession();
     const bigul = await startHangUp();
     const primary = await startRelay(bigul.port);
     const secondary = await startRelay(bigul.port);
@@ -410,6 +439,7 @@ describe("Bigul calls through relays", () => {
       SECRETS.BIGUL_API_KEY,
       SECRETS.BIGUL_API_SECRET,
       SECRETS.BIGUL_PARTNER_PASSWORD,
+      "partner-session-1",
     ])
       expect(carried.includes(plain)).toBe(false);
     expect(logged()).toEqual([

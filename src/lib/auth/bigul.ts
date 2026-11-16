@@ -27,8 +27,9 @@ export class BigulUnavailableError extends Error {
 // One 10 s deadline per Bigul call. It covers the request, reading the body
 // and, through relays, every relay tried: a relay is only skipped while its
 // tunnel is opening (at most RELAY_CONNECT_TIMEOUT_MS, 3 s), so behind a dead
-// primary the secondary still has at least 7 s. A callback makes one call
-// (the client check), well inside its 60 s maxDuration.
+// primary the secondary still has at least 7 s. A callback makes at most two
+// calls (partner login when not cached, then the client check), well inside
+// its 60 s maxDuration.
 const TIMEOUT_MS = 10_000;
 const SESSION_MARGIN_MS = 5 * 60 * 1000;
 const MESSAGE_MAX_LENGTH = 200;
@@ -220,15 +221,19 @@ export async function ssoSessionId(): Promise<string> {
 }
 
 /**
- * Bigul's client profile, as Bigul confirmed on 23 Oct 2026: a GET with the
- * app key/secret and the client's token, no partner session. Verified on
- * production that it answers 401 "client_code mismatch" for another client's
- * code, and 401 for a fake, missing or non-Bearer token.
+ * Bigul's client profile: a GET with the app key/secret, our partner session
+ * in `x-vendor-auth` and the client's token. Bigul first said (23 Oct 2026)
+ * no partner session was needed; in Nov 2026 Sahil (Bigul) asked for
+ * `x-vendor-auth` after some clients got 401 "Session expired or user logged
+ * out" here. Verified on production that it answers 401 "client_code
+ * mismatch" for another client's code, and 401 for a fake, missing or
+ * non-Bearer token.
  */
 function fetchProfile(
   config: BigulApiConfig,
   clientCode: string,
   token: string,
+  sessionId: string,
 ): Promise<Answer> {
   const url = new URL(`${config.baseUrl}/auth/connect/get-client-profile`);
   url.searchParams.set("clientCode", clientCode);
@@ -238,6 +243,7 @@ function fetchProfile(
     headers: {
       "x-api-key": config.apiKey,
       "x-api-secret": config.apiSecret,
+      "x-vendor-auth": sessionId,
       Authorization: `Bearer ${token}`,
     },
   });
@@ -410,7 +416,13 @@ export async function verifyBigulLogin({
     await verifyWithMargin(config, clientCode, token);
     return { clientCode };
   }
-  const answer = await fetchProfile(config, clientCode, token);
-  checkProfile(answer, clientCode, [token, ...configSecrets(config)]);
+  // After the local checks, so an obviously wrong token costs no Bigul call.
+  const { sessionId } = await partnerSession(config);
+  const answer = await fetchProfile(config, clientCode, token, sessionId);
+  checkProfile(answer, clientCode, [
+    token,
+    sessionId,
+    ...configSecrets(config),
+  ]);
   return { clientCode };
 }
