@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { DM_Sans } from "next/font/google";
 import localFont from "next/font/local";
 import React from "react";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
+import { appTheme } from "@/lib/auth/session";
 
 const inter = localFont({
   src: [
@@ -12,6 +14,19 @@ const inter = localFont({
   ],
   preload: true,
   display: "swap",
+  variable: "--font-inter",
+});
+
+// The Super App's font. Not preloaded: only that app's WebView uses it.
+const dmSans = DM_Sans({
+  subsets: ["latin", "latin-ext"],
+  // DM Sans is a variable font: one file per subset carries every weight.
+  // (A weight list repeats that file, which Turbopack's build rejects.)
+  weight: "variable",
+  style: "normal",
+  preload: false,
+  display: "swap",
+  variable: "--font-dm-sans",
 });
 
 const description =
@@ -30,14 +45,23 @@ export const metadata: Metadata = {
   twitter: { card: "summary", title: "Mayra AI", description },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // The app cookie names the Bigul app this WebView belongs to. The Super App
+  // is dark only; the default theme keeps its light look and no attributes.
+  const superApp = (await appTheme()) === "superapp";
   return (
-    <html lang="en">
-      <body className={inter.className}>
+    <html
+      lang="en"
+      data-theme={superApp ? "superapp" : undefined}
+      className={[inter.variable, dmSans.variable, superApp ? "dark" : ""]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      <body>
         <NuqsAdapter>{children}</NuqsAdapter>
       </body>
     </html>

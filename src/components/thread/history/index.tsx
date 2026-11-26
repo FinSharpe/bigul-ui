@@ -496,7 +496,7 @@ export default function ThreadHistory({
         <button
           type="button"
           onClick={startNewChat}
-          className="brand-gradient flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-full px-4 py-3 text-sm font-medium text-white shadow-md shadow-[#0a1f4d]/10 transition-all hover:brightness-110 active:scale-[0.98]"
+          className="brand-gradient shadow-brand-shadow/10 flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-full px-4 py-3 text-sm font-medium text-white shadow-md transition-all hover:brightness-110 active:scale-[0.98]"
         >
           <Plus
             className="size-3.5"

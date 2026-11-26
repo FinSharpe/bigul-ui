@@ -50,6 +50,14 @@
   --sidebar-accent-foreground: #063baa;
   --sidebar-border: #e2e8f0;
   --sidebar-ring: #063baa;
+  /* Hardcoded brand colours, now tokens (same values). */
+  --brand-shadow: #0a1f4d;
+  --brand-teal: #2f6868;
+  /* Font and type scale; each app theme sets its own. */
+  --font-app: var(--font-inter);
+  --app-font-size: 14px;
+  --app-line-height: 1.55;
+  --app-letter-spacing: normal;
 }
 
 .dark {
@@ -92,6 +100,64 @@
   --sidebar-ring: oklch(0.439 0 0);
 }
 
+/* The Bigul Super App (platform 99): dark only, DM Sans, Bigul's palette.
+   html[...] outranks .dark, which the same element also carries. */
+html[data-theme="superapp"] {
+  color-scheme: dark;
+  --font-app: var(--font-dm-sans);
+  /* Text XL 13/136% for UI text; the chat message body sets its own. */
+  --app-font-size: 13px;
+  --app-line-height: 1.36;
+  --app-letter-spacing: normal;
+  --background: #01030d;
+  --foreground: #f3f4f6;
+  --card: #0b0d17;
+  --card-foreground: #f3f4f6;
+  --popover: #131623;
+  --popover-foreground: #f3f4f6;
+  --primary: #5368fc;
+  --primary-foreground: #ffffff;
+  --secondary: #0e143f;
+  --secondary-foreground: #b5bbfe;
+  --muted: #171a26;
+  --muted-foreground: #858ca6;
+  --accent: #0e143f;
+  --accent-foreground: #b5bbfe;
+  --destructive: #f86c60;
+  --destructive-foreground: #f86c60;
+  --negative-container: #2a1210;
+  --positive: #3aecb4;
+  --surface-subtle: #131623;
+  --mint: #1d1840;
+  --mint-foreground: #b3a8f0;
+  --brand-gradient: linear-gradient(330deg, #283ab7 0%, #5368fc 100%);
+  --chat-card-shadow:
+    0 1px 2px rgb(0 0 0 / 40%), 0 10px 28px -16px rgb(83 104 252 / 22%);
+  --chat-nav-shadow:
+    0 8px 24px -8px rgb(0 0 0 / 70%), 0 0 24px -10px rgb(83 104 252 / 30%);
+  --border: #202331;
+  --input: #272936;
+  --ring: #5368fc;
+  --chart-1: #5368fc;
+  --chart-2: #3aecb4;
+  --chart-3: #dc8600;
+  --chart-4: #8575de;
+  --chart-5: #f86c60;
+  --radius: 1rem;
+  --sidebar: #0b0d17;
+  --sidebar-foreground: #f3f4f6;
+  --sidebar-primary: #5368fc;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #0e143f;
+  --sidebar-accent-foreground: #b5bbfe;
+  --sidebar-border: #202331;
+  --sidebar-ring: #5368fc;
+  --brand-shadow: #000000;
+  --brand-teal: #354ae1;
+  /* The bottom nav pill's teal-tinted hairline, for the composer pill. */
+  --composer-border: rgb(58 236 180 / 22%);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -131,6 +197,9 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-brand-shadow: var(--brand-shadow);
+  --color-brand-teal: var(--brand-teal);
+  --color-positive: var(--positive);
 }
 
 @layer base {
@@ -140,8 +209,10 @@
 
   body {
     @apply bg-background text-foreground;
-    font-size: 14px;
-    line-height: 1.55;
+    font-family: var(--font-app);
+    font-size: var(--app-font-size);
+    line-height: var(--app-line-height);
+    letter-spacing: var(--app-letter-spacing);
     font-synthesis: none;
     -webkit-font-smoothing: antialiased;
   }
@@ -180,6 +251,9 @@
       border-radius: 18px;
       box-shadow: var(--chat-card-shadow);
     }
+  }
+  html[data-theme="superapp"] .chat-composer:not(:focus-within) {
+    border-color: var(--composer-border);
   }
   .chat-composer:focus-within {
     border-color: color-mix(in srgb, var(--primary) 45%, var(--border));

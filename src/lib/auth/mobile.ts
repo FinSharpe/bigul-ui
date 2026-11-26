@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { normalizeClientCode } from "./client-code";
 import { noStore } from "./responses";
+import { DEFAULT_THEME, type AppTheme } from "@/lib/platform";
 
 // Server-only. Sign-in for the Bigul app's WebView: the app sends its own
 // session token in headers on the first load, and /auth/mobile exchanges it
@@ -156,8 +157,14 @@ export function mobileErrorRedirect(
   return noStore(NextResponse.redirect(url, 303));
 }
 
-const NOTICE_STYLE =
-  "body{margin:0;min-height:100dvh;display:flex;align-items:center;justify-content:center;background:#f4f5f7;color:#18202a;font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}main{max-width:360px;margin:16px;padding:28px 24px;background:#fff;border-radius:12px;box-shadow:0 1px 4px #0002;text-align:center}h1{font-size:18px;margin:0 0 8px}p{margin:0;color:#5b6573}";
+const NOTICE_STYLES: Readonly<Record<AppTheme, string>> = {
+  bigul:
+    "body{margin:0;min-height:100dvh;display:flex;align-items:center;justify-content:center;background:#f4f5f7;color:#18202a;font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}main{max-width:360px;margin:16px;padding:28px 24px;background:#fff;border-radius:12px;box-shadow:0 1px 4px #0002;text-align:center}h1{font-size:18px;margin:0 0 8px}p{margin:0;color:#5b6573}",
+  // The Super App: dark, DM Sans (served from /fonts, outside the session
+  // gate), Bigul's surfaces and a hairline-bordered 16px card.
+  superapp:
+    "@font-face{font-family:'DM Sans';font-style:normal;font-weight:400 600;font-display:swap;src:url(/fonts/report/DMSans-latin.woff2) format('woff2')}:root{color-scheme:dark}body{margin:0;min-height:100dvh;display:flex;align-items:center;justify-content:center;background:#01030d;color:#f3f4f6;font:15px/1.4 'DM Sans',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;letter-spacing:-0.01em}main{max-width:360px;margin:16px;padding:28px 24px;background:#0b0d17;border:1px solid #202331;border-radius:16px;box-shadow:0 10px 28px -16px rgb(83 104 252 / 22%);text-align:center}h1{font-size:17px;line-height:1.18;font-weight:600;margin:0 0 8px}p{margin:0;color:#858ca6}",
+};
 
 /**
  * A small self-contained page for the WebView. Text is fixed per status,
@@ -169,8 +176,11 @@ export function mobileNotice(options: {
   title: string;
   message: string;
   retryAfterSeconds?: number;
+  /** The Bigul app the WebView belongs to (its app cookie). */
+  theme?: AppTheme;
 }): Response {
-  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${options.title} · Mayra AI</title><style>${NOTICE_STYLE}</style></head><body><main><h1>${options.title}</h1><p>${options.message}</p></main></body></html>`;
+  const style = NOTICE_STYLES[options.theme ?? DEFAULT_THEME];
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${options.title} · Mayra AI</title><style>${style}</style></head><body><main><h1>${options.title}</h1><p>${options.message}</p></main></body></html>`;
   const headers = new Headers({
     "Content-Type": "text/html; charset=utf-8",
   });

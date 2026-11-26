@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { mobileNotice, type MobileErrorCode } from "@/lib/auth/mobile";
+import { appThemeFromRequest } from "@/lib/auth/session";
 
 export const runtime = "nodejs";
 
@@ -45,5 +46,5 @@ export function GET(request: NextRequest) {
     code && Object.hasOwn(PAGES, code)
       ? PAGES[code as MobileErrorCode]
       : PAGES.missing;
-  return mobileNotice(page);
+  return mobileNotice({ ...page, theme: appThemeFromRequest(request) });
 }

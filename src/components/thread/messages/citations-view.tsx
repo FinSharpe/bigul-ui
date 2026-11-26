@@ -33,7 +33,7 @@ function DialogContent({
 }) {
   return (
     <DialogPrimitive.Portal>
-      <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/30" />
+      <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/30 dark:bg-black/60" />
       <DialogPrimitive.Content
         aria-describedby={undefined}
         className={`bg-background fixed top-1/2 left-1/2 z-50 -translate-x-1/2 -translate-y-1/2 rounded-xl border shadow-lg ${className}`}

@@ -48,7 +48,7 @@ function ContentCopyable({
             exit={{ opacity: 0, scale: 0.8 }}
             transition={{ duration: 0.15 }}
           >
-            <CopyCheck className="text-green-500" />
+            <CopyCheck className="dark:text-positive text-green-500" />
           </motion.div>
         ) : (
           <motion.div
