@@ -284,7 +284,7 @@ export function Thread() {
               <Button
                 type="button"
                 variant="ghost"
-                className="text-primary min-h-11 shrink-0 rounded-full text-xs"
+                className="text-primary-text min-h-11 shrink-0 rounded-full text-xs"
                 disabled={isLoading || stream.isThreadLoading}
                 onClick={handleRetry}
               >

@@ -228,6 +228,6 @@ describe("mobileNotice", () => {
     expect(html).toContain("color-scheme:dark");
     expect(html).toContain("background:#01030d");
     expect(html).toContain("'DM Sans'");
-    expect(html).toContain("/fonts/report/DMSans-latin.woff2");
+    expect(html).toContain("/fonts/app/DMSans-latin.woff2");
   });
 });

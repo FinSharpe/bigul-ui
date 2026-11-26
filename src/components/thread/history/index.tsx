@@ -101,7 +101,7 @@ function ThreadList({
                           ? "h-9 px-2.5 text-[13.5px]"
                           : "min-h-11 px-3 py-2 text-sm font-medium",
                         current
-                          ? "bg-secondary text-primary"
+                          ? "bg-secondary text-secondary-foreground"
                           : "hover-tint text-foreground",
                       )}
                       onClick={() => onSelect(thread.thread_id)}
@@ -186,7 +186,7 @@ function Avatar({ className }: { className?: string }) {
     <span
       aria-hidden="true"
       className={cn(
-        "bg-secondary text-primary flex size-9 shrink-0 items-center justify-center rounded-full",
+        "bg-secondary text-primary-text flex size-9 shrink-0 items-center justify-center rounded-full",
         className,
       )}
     >
@@ -359,7 +359,7 @@ export default function ThreadHistory({
           onClick={() => writeCollapsed(false)}
           title="Expand sidebar"
           aria-label="Expand sidebar"
-          className="hover-tint text-muted-foreground hover:text-primary flex size-10 cursor-pointer items-center justify-center rounded-[10px] transition-colors"
+          className="hover-tint text-muted-foreground hover:text-primary-text flex size-10 cursor-pointer items-center justify-center rounded-[10px] transition-colors"
         >
           <PanelLeftOpen className="size-5" />
         </button>
@@ -417,7 +417,7 @@ export default function ThreadHistory({
           onClick={() => writeCollapsed(true)}
           title="Collapse sidebar"
           aria-label="Collapse sidebar"
-          className="hover-tint text-muted-foreground hover:text-primary flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full transition-colors"
+          className="hover-tint text-muted-foreground hover:text-primary-text flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full transition-colors"
         >
           <PanelLeftClose className="size-5" />
         </button>
@@ -484,7 +484,7 @@ export default function ThreadHistory({
     <>
       <div className="border-border/60 flex min-h-14 shrink-0 items-center gap-2.5 border-b py-3 pr-14 pl-4">
         <History
-          className="text-primary size-[17px]"
+          className="text-primary-text size-[17px]"
           strokeWidth={1.6}
           aria-hidden="true"
         />

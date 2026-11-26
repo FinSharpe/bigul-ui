@@ -16,7 +16,7 @@
 }
 
 .markdown-content a {
-  color: var(--primary);
+  color: var(--primary-text);
   text-decoration: none;
 }
 

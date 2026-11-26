@@ -19,7 +19,7 @@ function isUrl(value: any): boolean {
 function renderInterruptStateItem(value: any): React.ReactNode {
   if (isComplexValue(value)) {
     return (
-      <code className="rounded bg-gray-50 px-2 py-1 font-mono text-sm">
+      <code className="dark:bg-muted rounded bg-gray-50 px-2 py-1 font-mono text-sm">
         {JSON.stringify(value, null, 2)}
       </code>
     );
@@ -29,7 +29,7 @@ function renderInterruptStateItem(value: any): React.ReactNode {
         href={value}
         target="_blank"
         rel="noopener noreferrer"
-        className="break-all text-blue-600 underline hover:text-blue-800"
+        className="dark:text-primary-text dark:hover:text-primary-text break-all text-blue-600 underline hover:text-blue-800"
       >
         {value}
       </a>
@@ -91,14 +91,16 @@ export function GenericInterruptView({ interrupt }: { interrupt: unknown }) {
   const displayEntries = processEntries();
 
   return (
-    <div className="overflow-hidden rounded-lg border border-gray-200">
-      <div className="border-b border-gray-200 bg-gray-50 px-4 py-2">
+    <div className="dark:border-border overflow-hidden rounded-lg border border-gray-200">
+      <div className="dark:border-border dark:bg-muted border-b border-gray-200 bg-gray-50 px-4 py-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="font-medium text-gray-900">Human Interrupt</h3>
+          <h3 className="dark:text-foreground font-medium text-gray-900">
+            Human Interrupt
+          </h3>
         </div>
       </div>
       <motion.div
-        className="min-w-full bg-gray-100"
+        className="dark:bg-muted min-w-full bg-gray-100"
         initial={false}
         animate={{ height: "auto" }}
         transition={{ duration: 0.3 }}
@@ -119,18 +121,18 @@ export function GenericInterruptView({ interrupt }: { interrupt: unknown }) {
                 overflow: "auto",
               }}
             >
-              <table className="min-w-full divide-y divide-gray-200">
-                <tbody className="divide-y divide-gray-200">
+              <table className="dark:divide-border min-w-full divide-y divide-gray-200">
+                <tbody className="dark:divide-border divide-y divide-gray-200">
                   {displayEntries.map((item, argIdx) => {
                     const [key, value] = Array.isArray(interrupt)
                       ? [argIdx.toString(), item]
                       : (item as [string, any]);
                     return (
                       <tr key={argIdx}>
-                        <td className="px-4 py-2 text-sm font-medium whitespace-nowrap text-gray-900">
+                        <td className="dark:text-foreground px-4 py-2 text-sm font-medium whitespace-nowrap text-gray-900">
                           {key}
                         </td>
-                        <td className="px-4 py-2 text-sm text-gray-500">
+                        <td className="dark:text-muted-foreground px-4 py-2 text-sm text-gray-500">
                           {renderInterruptStateItem(value)}
                         </td>
                       </tr>
@@ -145,7 +147,7 @@ export function GenericInterruptView({ interrupt }: { interrupt: unknown }) {
           (Array.isArray(interrupt) && interrupt.length > 5)) && (
           <motion.button
             onClick={() => setIsExpanded(!isExpanded)}
-            className="flex w-full cursor-pointer items-center justify-center border-t-[1px] border-gray-200 py-2 text-gray-500 transition-all duration-200 ease-in-out hover:bg-gray-50 hover:text-gray-600"
+            className="dark:border-border dark:text-muted-foreground dark:hover:bg-muted dark:hover:text-muted-foreground flex w-full cursor-pointer items-center justify-center border-t-[1px] border-gray-200 py-2 text-gray-500 transition-all duration-200 ease-in-out hover:bg-gray-50 hover:text-gray-600"
             initial={{ scale: 1 }}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}

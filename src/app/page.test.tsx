@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/lib/auth/session", () => ({
   getServerSession: async () => mocks.session,
   isEmbedded: async () => mocks.embedded,
+  appTheme: async () => "bigul",
 }));
 vi.mock("next/navigation", () => ({ redirect: mocks.redirect }));
 vi.mock("@/components/chat-app", () => ({ ChatApp: () => null }));
@@ -33,7 +34,11 @@ describe("chat page", () => {
     async (embedded) => {
       mocks.embedded = embedded;
       const element = await ChatPage();
-      expect(element.props).toEqual({ clientCode: "TEST0001", embedded });
+      expect(element.props).toEqual({
+        clientCode: "TEST0001",
+        embedded,
+        appTheme: "bigul",
+      });
     },
   );
 });

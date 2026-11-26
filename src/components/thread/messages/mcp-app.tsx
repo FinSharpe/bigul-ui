@@ -33,7 +33,6 @@ import {
   type McpAppPayload,
 } from "./mcp-app-payload";
 import { stampGuestTheme, useHostTheme, type HostTheme } from "./mcp-app-theme";
-import { pageTheme, reportFontCss } from "./mcp-app-fonts";
 import { additionalKwargs } from "./tool-activity";
 
 export type McpApp = McpAppPayload;
@@ -55,11 +54,33 @@ export function wrapGuestHtml(html: string, theme: HostTheme, fontCss = "") {
   return stampGuestTheme(html, theme, policy + fontCss + navigation + layout);
 }
 
+let fontPromise: Promise<string> | undefined;
+function reportFontCss() {
+  return (fontPromise ??= Promise.all(
+    [400, 500, 600].map(async (weight) => {
+      const response = await fetch(
+        `/fonts/report/Inter-${weight}.subset.woff2`,
+        { signal: AbortSignal.timeout(4000) },
+      );
+      if (!response.ok) throw new Error("Font unavailable");
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      let binary = "";
+      for (const byte of bytes) binary += String.fromCharCode(byte);
+      return `@font-face{font-family:Inter;font-style:normal;font-weight:${weight};font-display:block;src:url(data:font/woff2;base64,${btoa(binary)}) format('woff2');}`;
+    }),
+  )
+    .then((fonts) => `<style>${fonts.join("")}</style>`)
+    .catch(() => {
+      fontPromise = undefined;
+      return "";
+    }));
+}
+
 export function McpAppReport({ app }: { app: McpApp }) {
   const [fontCss, setFontCss] = useState<string>();
   useEffect(() => {
     let active = true;
-    reportFontCss(pageTheme()).then((css) => {
+    reportFontCss().then((css) => {
       if (active) setFontCss(css);
     });
     return () => {
@@ -315,7 +336,7 @@ function McpAppFrame({
           </p>
           <button
             type="button"
-            className="text-primary underline underline-offset-2"
+            className="text-primary-text underline underline-offset-2"
             onClick={() => {
               setFailed(false);
               setLiveHtml(undefined);

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { ChatApp } from "@/components/chat-app";
-import { getServerSession, isEmbedded } from "@/lib/auth/session";
+import { appTheme, getServerSession, isEmbedded } from "@/lib/auth/session";
 
 // Server-side gate; proxy.ts is only the first, optimistic check.
 export default async function ChatPage() {
@@ -10,6 +10,7 @@ export default async function ChatPage() {
     <ChatApp
       clientCode={session.clientCode}
       embedded={await isEmbedded()}
+      appTheme={await appTheme()}
     />
   );
 }

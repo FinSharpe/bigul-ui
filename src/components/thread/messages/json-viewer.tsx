@@ -84,7 +84,7 @@ export function JsonViewer({
                 transition={{ duration: 0.15 }}
                 className="flex items-center gap-1.5"
               >
-                <CopyCheck className="h-3.5 w-3.5 text-green-600" />
+                <CopyCheck className="dark:text-positive h-3.5 w-3.5 text-green-600" />
                 Copied
               </motion.span>
             ) : (
@@ -155,7 +155,11 @@ function JsonNode({
     return (
       <LeafLine
         keyLabel={keyLabel}
-        valueNode={<span className="text-gray-400 italic">[Circular]</span>}
+        valueNode={
+          <span className="dark:text-muted-foreground text-gray-400 italic">
+            [Circular]
+          </span>
+        }
         isLast={isLast}
       />
     );
@@ -207,27 +211,35 @@ function JsonNode({
         <div className="min-w-0 flex-1">
           {keyLabel !== undefined && (
             <>
-              <span className="text-primary">
+              <span className="text-primary-text">
                 {typeof keyLabel === "number"
                   ? keyLabel
                   : JSON.stringify(keyLabel)}
               </span>
-              <span className="text-gray-500">: </span>
+              <span className="dark:text-muted-foreground text-gray-500">
+                :{" "}
+              </span>
             </>
           )}
           {isEmpty ? (
-            <span className="text-gray-500">
+            <span className="dark:text-muted-foreground text-gray-500">
               {openBracket}
               {closeBracket}
               {!isLast && ","}
             </span>
           ) : expanded ? (
-            <span className="text-gray-500">{openBracket}</span>
+            <span className="dark:text-muted-foreground text-gray-500">
+              {openBracket}
+            </span>
           ) : (
             <>
-              <span className="text-gray-500">{openBracket}</span>
-              <span className="px-1 text-gray-400">{summary}</span>
-              <span className="text-gray-500">
+              <span className="dark:text-muted-foreground text-gray-500">
+                {openBracket}
+              </span>
+              <span className="dark:text-muted-foreground px-1 text-gray-400">
+                {summary}
+              </span>
+              <span className="dark:text-muted-foreground text-gray-500">
                 {closeBracket}
                 {!isLast && ","}
               </span>
@@ -255,7 +267,7 @@ function JsonNode({
               <button
                 type="button"
                 onClick={() => setVisibleCount((count) => count + 100)}
-                className="text-primary min-h-8 px-1 text-[11px]"
+                className="text-primary-text min-h-8 px-1 text-[11px]"
               >
                 Show next {Math.min(100, entries.length - visibleCount)} items
               </button>
@@ -263,7 +275,7 @@ function JsonNode({
           </div>
           <div className="flex items-start">
             <span className="inline-block h-5 w-4 flex-shrink-0" />
-            <span className="text-gray-500">
+            <span className="dark:text-muted-foreground text-gray-500">
               {closeBracket}
               {!isLast && ","}
             </span>
@@ -289,16 +301,18 @@ function LeafLine({
       <div className="min-w-0 flex-1">
         {keyLabel !== undefined && (
           <>
-            <span className="text-primary">
+            <span className="text-primary-text">
               {typeof keyLabel === "number"
                 ? keyLabel
                 : JSON.stringify(keyLabel)}
             </span>
-            <span className="text-gray-500">: </span>
+            <span className="dark:text-muted-foreground text-gray-500">: </span>
           </>
         )}
         {valueNode}
-        {!isLast && <span className="text-gray-500">,</span>}
+        {!isLast && (
+          <span className="dark:text-muted-foreground text-gray-500">,</span>
+        )}
       </div>
     </div>
   );
@@ -306,10 +320,14 @@ function LeafLine({
 
 function PrimitiveValue({ value }: { value: JsonPrimitive }) {
   if (value === null) {
-    return <span className="text-gray-400 italic">null</span>;
+    return (
+      <span className="dark:text-muted-foreground text-gray-400 italic">
+        null
+      </span>
+    );
   }
   if (typeof value === "boolean") {
-    return <span className="text-primary">{String(value)}</span>;
+    return <span className="text-primary-text">{String(value)}</span>;
   }
   if (typeof value === "number") {
     return <span className="text-foreground">{value}</span>;
@@ -317,7 +335,11 @@ function PrimitiveValue({ value }: { value: JsonPrimitive }) {
   if (typeof value === "string") {
     return <StringValue value={value} />;
   }
-  return <span className="text-gray-500">{String(value)}</span>;
+  return (
+    <span className="dark:text-muted-foreground text-gray-500">
+      {String(value)}
+    </span>
+  );
 }
 
 function StringValue({ value }: { value: string }) {
@@ -332,7 +354,7 @@ function StringValue({ value }: { value: string }) {
       {tooLong && (
         <button
           onClick={() => setExpanded((e) => !e)}
-          className="ml-2 rounded px-1.5 py-0.5 text-xs text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+          className="dark:text-muted-foreground dark:hover:bg-muted dark:hover:text-foreground ml-2 rounded px-1.5 py-0.5 text-xs text-gray-500 hover:bg-gray-100 hover:text-gray-900"
         >
           {expanded ? "Show less" : "Show more"}
         </button>

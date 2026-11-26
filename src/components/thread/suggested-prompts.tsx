@@ -87,7 +87,7 @@ export function SuggestedPrompts({
               className={cn(
                 "size-3.5 shrink-0",
                 i === 0
-                  ? "text-primary"
+                  ? "text-primary-text"
                   : i === 1
                     ? "text-[var(--positive)]"
                     : "text-foreground",
@@ -129,7 +129,7 @@ export function FollowUpPrompts({
           >
             <span>{text}</span>
             <ArrowUpRight
-              className="text-primary size-4 shrink-0"
+              className="text-primary-text size-4 shrink-0"
               aria-hidden="true"
             />
           </button>
