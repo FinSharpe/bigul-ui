@@ -2,7 +2,17 @@
 import { describe, expect, it } from "vitest";
 import { NextRequest } from "next/server";
 import { GET } from "./route";
-import { GET as expired } from "../expired/route";
+import { GET as expiredRoute } from "../expired/route";
+import { appCookieName } from "@/lib/auth/session";
+
+const withApp = (url: string, theme?: string) =>
+  new NextRequest(url, {
+    headers: theme ? { cookie: `${appCookieName()}=${theme}` } : {},
+  });
+const expired = (theme?: string) =>
+  expiredRoute(
+    withApp("https://bigul-ai.vercel.app/auth/mobile/expired", theme),
+  );
 
 const page = (query: string) =>
   GET(new NextRequest(`https://bigul-ai.vercel.app/auth/mobile/error${query}`));
@@ -55,5 +65,27 @@ describe("GET /auth/mobile/expired", () => {
     const html = await response.text();
     expect(html).toContain("open it again from the Bigul app");
     expect(html).not.toMatch(/<a\b|sign in/i);
+  });
+});
+
+describe("app theme on the notice pages", () => {
+  const error = (theme?: string) =>
+    GET(
+      withApp(
+        "https://bigul-ai.vercel.app/auth/mobile/error?code=denied",
+        theme,
+      ),
+    );
+
+  it("draws the Super App's pages dark from its app cookie", async () => {
+    expect(await error("superapp").text()).toContain("background:#01030d");
+    expect(await expired("superapp").text()).toContain("background:#01030d");
+  });
+
+  it("keeps the default look without the cookie or with an unknown value", async () => {
+    for (const theme of [undefined, "bigul", "other"]) {
+      expect(await error(theme).text()).toContain("background:#f4f5f7");
+      expect(await expired(theme).text()).toContain("background:#f4f5f7");
+    }
   });
 });

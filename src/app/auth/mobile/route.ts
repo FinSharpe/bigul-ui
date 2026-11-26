@@ -31,6 +31,7 @@ import { themeFor, type AppTheme } from "@/lib/platform";
 import { noStore } from "@/lib/auth/responses";
 import {
   appCookie,
+  appThemeFromRequest,
   embeddedCookie,
   expiredSessionCookie,
   mintSession,
@@ -128,6 +129,7 @@ export async function GET(request: NextRequest) {
       status: 400,
       title: "Something went wrong",
       message: "Please close Mayra and open it again from the Bigul app.",
+      theme: appThemeFromRequest(request),
     });
   }
   const blocked = fetchMetadataProblem(request);

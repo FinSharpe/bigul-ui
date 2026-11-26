@@ -50,7 +50,7 @@ export function SignOutButton({
       ) : variant === "sheet" ? (
         <button
           type="submit"
-          className="border-primary/30 text-primary hover:bg-accent flex h-[52px] w-full cursor-pointer items-center justify-center rounded-full border text-sm font-medium transition-colors"
+          className="border-primary/30 text-primary-text hover:bg-accent flex h-[52px] w-full cursor-pointer items-center justify-center rounded-full border text-sm font-medium transition-colors"
         >
           Sign out
         </button>

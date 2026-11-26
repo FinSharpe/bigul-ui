@@ -179,7 +179,7 @@ export function HumanMessage({
             )}
             {/* Render text if present, otherwise fallback to file/image name */}
             {contentString ? (
-              <div className="bg-secondary text-secondary-foreground ml-auto w-fit max-w-full min-w-12 rounded-[14px] rounded-tr-[2px] p-3.5 text-left text-[13px] leading-normal font-medium">
+              <div className="chat-question bg-secondary text-secondary-foreground ml-auto w-fit max-w-full min-w-12 rounded-[14px] rounded-tr-[2px] p-3.5 text-left text-[13px] leading-normal font-medium">
                 <CollapsibleText>{contentString}</CollapsibleText>
               </div>
             ) : null}

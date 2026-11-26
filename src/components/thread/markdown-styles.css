@@ -16,7 +16,7 @@
 }
 
 .markdown-content a {
-  color: var(--primary);
+  color: var(--primary-text);
   text-decoration: none;
 }
 
@@ -87,4 +87,39 @@
   max-width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
+}
+
+/* Super App type scale (DM Sans). Chat headings step down Bigul's scale by
+   two (H1 renders at H3, H2 at H4) so an answer card at phone width is not
+   dominated by a 25px title; body is Text 2XL. Default theme untouched. */
+html[data-theme="superapp"] .markdown-content {
+  font-size: 15px;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+}
+html[data-theme="superapp"] .markdown-content :is(h1, h2, h3, h4) {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+html[data-theme="superapp"] .markdown-content h1 {
+  font-size: 17px;
+  line-height: 1.18;
+}
+html[data-theme="superapp"] .markdown-content h2 {
+  font-size: 15px;
+  line-height: 1.18;
+}
+html[data-theme="superapp"] .markdown-content :is(h3, h4) {
+  font-size: 15px;
+  line-height: 1.18;
+  font-weight: 500;
+}
+html[data-theme="superapp"] .markdown-content :is(table, th, td) {
+  font-size: 12px;
+}
+/* The client's own question matches the answer body (Text 2XL). */
+html[data-theme="superapp"] .chat-question {
+  font-size: 15px;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
 }

@@ -208,4 +208,26 @@ describe("mobileNotice", () => {
     expect(html).toContain("We couldn't reach Bigul");
     expect(html).not.toMatch(/<a\b|sign in/i);
   });
+  it("keeps the default page byte for byte, with or without the theme", async () => {
+    const page = { status: 401, title: "T", message: "M" };
+    const expected =
+      '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>T · Mayra AI</title><style>body{margin:0;min-height:100dvh;display:flex;align-items:center;justify-content:center;background:#f4f5f7;color:#18202a;font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}main{max-width:360px;margin:16px;padding:28px 24px;background:#fff;border-radius:12px;box-shadow:0 1px 4px #0002;text-align:center}h1{font-size:18px;margin:0 0 8px}p{margin:0;color:#5b6573}</style></head><body><main><h1>T</h1><p>M</p></main></body></html>';
+    expect(await mobileNotice(page).text()).toBe(expected);
+    expect(await mobileNotice({ ...page, theme: "bigul" }).text()).toBe(
+      expected,
+    );
+  });
+
+  it("draws the Super App page dark, in DM Sans", async () => {
+    const html = await mobileNotice({
+      status: 401,
+      title: "T",
+      message: "M",
+      theme: "superapp",
+    }).text();
+    expect(html).toContain("color-scheme:dark");
+    expect(html).toContain("background:#01030d");
+    expect(html).toContain("'DM Sans'");
+    expect(html).toContain("/fonts/app/DMSans-latin.woff2");
+  });
 });

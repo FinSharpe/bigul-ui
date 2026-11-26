@@ -88,7 +88,7 @@ function AccountMenu() {
             >
               <SheetTitle className="sr-only">Account</SheetTitle>
               <div className="flex items-center gap-3 py-1.5">
-                <span className="bg-secondary text-primary flex size-9 shrink-0 items-center justify-center rounded-full">
+                <span className="bg-secondary text-primary-text flex size-9 shrink-0 items-center justify-center rounded-full">
                   <UserRound className="size-[18px]" />
                 </span>
                 <p className="min-w-0 flex-1 leading-tight">
@@ -147,7 +147,7 @@ export function ChatToolbar({
         onClick={onNewChat}
         title="New chat"
         aria-label="New chat"
-        className={`hover-tint border-border text-primary flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full border ${TOUCH_TARGET}`}
+        className={`hover-tint border-border text-primary-text flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full border ${TOUCH_TARGET}`}
       >
         <Plus className="size-4" />
       </button>

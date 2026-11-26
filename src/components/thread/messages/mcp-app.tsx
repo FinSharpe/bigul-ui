@@ -336,7 +336,7 @@ function McpAppFrame({
           </p>
           <button
             type="button"
-            className="text-primary underline underline-offset-2"
+            className="text-primary-text underline underline-offset-2"
             onClick={() => {
               setFailed(false);
               setLiveHtml(undefined);

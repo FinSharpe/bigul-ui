@@ -33,7 +33,7 @@ function DialogContent({
 }) {
   return (
     <DialogPrimitive.Portal>
-      <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/30" />
+      <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/30 dark:bg-black/60" />
       <DialogPrimitive.Content
         aria-describedby={undefined}
         className={`bg-background fixed top-1/2 left-1/2 z-50 -translate-x-1/2 -translate-y-1/2 rounded-xl border shadow-lg ${className}`}
@@ -69,7 +69,7 @@ export function useCitationMarkdown(text: string) {
                 href={href}
                 target={href?.startsWith("http") ? "_blank" : undefined}
                 rel="noreferrer"
-                className="text-primary underline underline-offset-4"
+                className="text-primary-text underline underline-offset-4"
               >
                 {children}
               </a>
@@ -87,7 +87,7 @@ export function useCitationMarkdown(text: string) {
               type="button"
               onClick={() => context.open(citation)}
               aria-label={`Source ${context.registry.numbers.get(tag)}: ${citation.compname || citation.symbol}, ${filingLabel(citation)}`}
-              className="bg-primary/10 text-primary focus-visible:outline-primary mx-0.5 inline-flex min-h-6 min-w-6 cursor-pointer items-center justify-center rounded-full px-1 align-baseline text-[10px] font-medium no-underline focus-visible:outline-2"
+              className="bg-primary/10 text-primary-text focus-visible:outline-primary mx-0.5 inline-flex min-h-6 min-w-6 cursor-pointer items-center justify-center rounded-full px-1 align-baseline text-[10px] font-medium no-underline focus-visible:outline-2"
             >
               {children}
             </button>
@@ -268,7 +268,7 @@ function CitationDialog({
                   type="button"
                   disabled={passageIndex === 0}
                   aria-label="Previous source passage"
-                  className="text-primary min-h-8 px-2 disabled:opacity-40"
+                  className="text-primary-text min-h-8 px-2 disabled:opacity-40"
                   onClick={() => setPassageIndex((index) => index - 1)}
                 >
                   Previous
@@ -280,7 +280,7 @@ function CitationDialog({
                   type="button"
                   disabled={passageIndex === passages.length - 1}
                   aria-label="Next source passage"
-                  className="text-primary min-h-8 px-2 disabled:opacity-40"
+                  className="text-primary-text min-h-8 px-2 disabled:opacity-40"
                   onClick={() => setPassageIndex((index) => index + 1)}
                 >
                   Next
@@ -311,7 +311,7 @@ function CitationDialog({
                     setLoading(true);
                     setRetry((value) => value + 1);
                   }}
-                  className="text-primary mt-2 min-h-8 underline"
+                  className="text-primary-text mt-2 min-h-8 underline"
                 >
                   Try again
                 </button>
