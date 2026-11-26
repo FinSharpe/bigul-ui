@@ -8,6 +8,7 @@ import {
   it,
   vi,
 } from "vitest";
+import { decodeJwt } from "jose";
 import { NextRequest } from "next/server";
 import { resetPartnerSessionCache } from "@/lib/auth/bigul";
 import { mintSession, verifySessionToken } from "@/lib/auth/session";
@@ -334,6 +335,91 @@ describe("GET /auth/mobile", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  describe("platform", () => {
+    beforeEach(() => vi.stubEnv("BIGUL_SSO_PLATFORMS", "7,99"));
+
+    const appCookieValue = (response: Response) =>
+      cookie(response, "bigul_app")?.split(";")[0].split("=")[1];
+
+    it.each([
+      ["7", "bigul"],
+      ["99", "superapp"],
+    ])(
+      "accepts platform %s from a two-code allowlist and marks the app as %s",
+      async (platform, theme) => {
+        const response = await mobile(undefined, {
+          ...HANDOFF,
+          "x-bigul-platform": platform,
+        });
+        expect(response.headers.get("location")).toBe(
+          `${ORIGIN}/?threadId=abc`,
+        );
+        expect(decodeJwt(sessionValue(response)).plt).toBe(platform);
+        expect(appCookieValue(response)).toBe(theme);
+        const marker = cookie(response, "bigul_app")!;
+        expect(marker).toContain("HttpOnly");
+        expect(marker).toContain("Max-Age=2592000");
+        expect(fake.connectCalls()[0].url).toContain(`platform=${platform}`);
+        expect(vi.mocked(console.info).mock.calls.at(-1)?.[1]).toMatchObject({
+          platform,
+        });
+      },
+    );
+
+    it("sets the app cookie even when the Connect exchange fails", async () => {
+      useBigul({ outcome: "login-page" });
+      const response = await mobile(undefined, {
+        ...HANDOFF,
+        "x-bigul-platform": "99",
+      });
+      expectError(response, "denied");
+      expectSignedOutAndMarked(response);
+      expect(appCookieValue(response)).toBe("superapp");
+    });
+
+    it("sets the app cookie for an allowed platform with a malformed token", async () => {
+      const response = await mobile(undefined, {
+        "x-bigul-platform": "99",
+        "x-bigul-token": appToken({}),
+      });
+      expectError(response, "missing");
+      expect(appCookieValue(response)).toBe("superapp");
+      expect(fake.fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("sets the app cookie when the signing key is missing", async () => {
+      vi.stubEnv("BIGUL_SESSION_PRIVATE_KEY", "");
+      const response = await mobile(undefined, {
+        ...HANDOFF,
+        "x-bigul-platform": "99",
+      });
+      expectError(response, "config");
+      expect(appCookieValue(response)).toBe("superapp");
+      expect(fake.fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("sets no app cookie for a platform it refused", async () => {
+      const response = await mobile(undefined, {
+        ...HANDOFF,
+        "x-bigul-platform": "5",
+      });
+      expectError(response, "missing");
+      expect(cookie(response, "bigul_app")).toBeUndefined();
+    });
+
+    it("uses a __Host- app cookie in production", async () => {
+      vi.stubEnv("NODE_ENV", "production");
+      const response = await mobile(undefined, {
+        ...HANDOFF,
+        "x-bigul-platform": "99",
+      });
+      const value = cookie(response, "__Host-bigul_app")!;
+      expect(value).toMatch(/^__Host-bigul_app=superapp;/);
+      expect(value).toContain("Secure");
+      expect(value).toContain("Path=/");
+    });
   });
 
   it("refuses HEAD instead of running a sign-in", async () => {

@@ -9,6 +9,7 @@ import {
   mobileErrorRedirect,
   mobileNotice,
   parseHandoff,
+  parsePlatform,
 } from "./mobile";
 import { appToken } from "./test-tokens";
 
@@ -88,6 +89,17 @@ describe("parseHandoff", () => {
     ],
   ])("refuses %s", (_, values: Record<string, string>) => {
     expect(parseHandoff(headersOf(values), ["7"])).toBeNull();
+  });
+});
+
+describe("parsePlatform", () => {
+  it.each([
+    ["an allowed code", { "x-bigul-platform": " 99 " }, "99"],
+    ["a code not allowed", { "x-bigul-platform": "5" }, null],
+    ["a malformed code", { "x-bigul-platform": "9a" }, null],
+    ["no header", {}, null],
+  ])("reads %s", (_, values: Record<string, string>, expected) => {
+    expect(parsePlatform(headersOf(values), ["7", "99"])).toBe(expected);
   });
 });
 

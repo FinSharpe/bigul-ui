@@ -87,7 +87,7 @@ describe("nextSessionExpiry", () => {
 describe("mintSession", () => {
   it("signs an RS256 JWT with only the contract's claims", async () => {
     const now = at("2026-10-21T10:00:00Z");
-    const { token, expiresAt } = await mintSession(" y09042341 ", now);
+    const { token, expiresAt } = await mintSession(" y09042341 ", { now });
 
     const spki = createPublicKey(pem).export({ type: "spki", format: "der" });
     expect(decodeProtectedHeader(token)).toEqual({
@@ -109,9 +109,27 @@ describe("mintSession", () => {
     expect(claims.jti).toMatch(/^[A-Za-z0-9_-]{16,}$/);
     expect(expiresAt.toISOString()).toBe("2026-10-21T19:00:00.000Z");
 
-    const second = await mintSession("Y09042341", now);
+    const second = await mintSession("Y09042341", { now });
     expect(decodeJwt(second.token).jti).not.toBe(claims.jti);
   });
+
+  it("adds a plt claim only when given a platform", async () => {
+    const { token } = await mintSession("Y1", { platform: "99" });
+    expect(decodeJwt(token).plt).toBe("99");
+    expect(await verifySessionToken(token)).not.toBeNull();
+    expect(decodeJwt((await mintSession("Y1")).token)).not.toHaveProperty(
+      "plt",
+    );
+  });
+
+  it.each(["", "1000", "9a", " 99", "99\n"])(
+    "refuses the malformed platform %j",
+    async (platform) => {
+      await expect(mintSession("Y1", { platform })).rejects.toThrow(
+        "Invalid platform",
+      );
+    },
+  );
 
   it("uses the configured issuer and audience", async () => {
     vi.stubEnv("BIGUL_SESSION_ISSUER", "ui-staging");
@@ -167,7 +185,7 @@ describe("verifySessionToken", () => {
 
   it("rejects an expired token", async () => {
     const now = at("2026-10-21T10:00:00Z");
-    const { token } = await mintSession("Y1", now);
+    const { token } = await mintSession("Y1", { now });
     expect(await verifySessionToken(token, now)).not.toBeNull();
     expect(
       await verifySessionToken(token, at("2026-10-21T19:00:01Z")),

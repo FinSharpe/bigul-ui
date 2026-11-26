@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import type { NextRequest } from "next/server";
+import { parseTheme, type AppTheme } from "@/lib/platform";
 import { normalizeClientCode } from "./client-code";
 import { getSessionConfig } from "./config";
 
@@ -22,6 +23,9 @@ export const stateCookieName = () =>
 // client must never be shown a sign-in screen.
 export const embeddedCookieName = () =>
   secure() ? "__Host-bigul_embedded" : "bigul_embedded";
+// Set by /auth/mobile: which Bigul app's WebView this is, for its theme.
+export const appCookieName = () =>
+  secure() ? "__Host-bigul_app" : "bigul_app";
 
 // Outlives the 00:30 IST session, so an expired session still knows it is
 // in the app; renewed on every handoff.
@@ -48,17 +52,30 @@ export function nextSessionExpiry(now: Date | number = Date.now()): Date {
   return expiry;
 }
 
-/** Signs a session for a Bigul client code. Throws ConfigError without a key. */
+const PLATFORM_PATTERN = /^\d{1,3}$/;
+
+export type MintOptions = {
+  /** The app's X-Bigul-Platform code; mobile handoffs only. */
+  platform?: string;
+  now?: Date | number;
+};
+
+/**
+ * Signs a session for a Bigul client code, with a `plt` claim when a
+ * platform is given. Throws ConfigError without a key.
+ */
 export async function mintSession(
   clientCode: string,
-  now: Date | number = Date.now(),
+  { platform, now = Date.now() }: MintOptions = {},
 ): Promise<{ token: string; expiresAt: Date }> {
   const sub = normalizeClientCode(clientCode);
   if (!sub) throw new Error("Invalid client code");
+  if (platform !== undefined && !PLATFORM_PATTERN.test(platform))
+    throw new Error("Invalid platform");
   const { privateKey, kid, issuer, audience } = getSessionConfig();
   const nowMs = toMs(now);
   const expiresAt = nextSessionExpiry(nowMs);
-  const token = await new SignJWT({})
+  const token = await new SignJWT(platform ? { plt: platform } : {})
     .setProtectedHeader({ alg: "RS256", typ: "JWT", kid })
     .setIssuer(issuer)
     .setAudience(audience)
@@ -168,4 +185,25 @@ export function hasEmbeddedMarker(request: NextRequest): boolean {
 export async function isEmbedded(): Promise<boolean> {
   const store = await cookies();
   return store.get(embeddedCookieName())?.value === "1";
+}
+
+// Same life as the embedded marker; renewed on every handoff.
+export function appCookie(theme: AppTheme) {
+  return { ...embeddedCookie(), name: appCookieName(), value: theme };
+}
+
+// Same attributes as the live cookie, as __Host- requires.
+export function expiredAppCookie() {
+  return { ...appCookie("bigul"), value: "", maxAge: 0, expires: new Date(0) };
+}
+
+/** The app theme a request carries (route handlers). */
+export function appThemeFromRequest(request: NextRequest): AppTheme {
+  return parseTheme(request.cookies.get(appCookieName())?.value);
+}
+
+/** The app theme for this page (Server Components). */
+export async function appTheme(): Promise<AppTheme> {
+  const store = await cookies();
+  return parseTheme(store.get(appCookieName())?.value);
 }

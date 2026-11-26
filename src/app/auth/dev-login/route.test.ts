@@ -8,6 +8,7 @@ import {
   it,
   vi,
 } from "vitest";
+import { decodeJwt } from "jose";
 import { NextRequest } from "next/server";
 import { verifySessionToken } from "@/lib/auth/session";
 import { BLANK_AUTH_ENV, testPrivateKeyPem } from "@/lib/auth/test-keys";
@@ -80,6 +81,47 @@ describe("GET /auth/dev-login", () => {
       ).toBe("verify");
       expect(response.headers.getSetCookie()).toEqual([]);
     });
+
+    const sessionJwt = (response: Response) =>
+      decodeURIComponent(
+        response.headers
+          .getSetCookie()
+          .find((value) => value.startsWith("bigul_session="))!
+          .split(";")[0]
+          .split("=")[1],
+      );
+    const appCookie = (response: Response) =>
+      response.headers
+        .getSetCookie()
+        .find((value) => value.startsWith("bigul_app="));
+
+    it("adds no plt claim and expires any app cookie without a platform", async () => {
+      const response = await devLogin();
+      expect(decodeJwt(sessionJwt(response)).plt).toBeUndefined();
+      expect(appCookie(response)).toMatch(/^bigul_app=;/);
+      expect(appCookie(response)).toContain("Max-Age=0");
+    });
+
+    it.each([
+      ["99", "superapp"],
+      ["7", "bigul"],
+    ])("signs in as platform %s's WebView would", async (platform, theme) => {
+      const response = await devLogin(`?client=test01&platform=${platform}`);
+      expect(response.status).toBe(303);
+      expect(decodeJwt(sessionJwt(response)).plt).toBe(platform);
+      expect(appCookie(response)).toMatch(new RegExp(`^bigul_app=${theme};`));
+    });
+
+    it.each(["1000", "abc", "", "9%209"])(
+      "refuses platform=%j",
+      async (platform) => {
+        const response = await devLogin(`?client=test01&platform=${platform}`);
+        expect(
+          new URL(response.headers.get("location")!).searchParams.get("error"),
+        ).toBe("verify");
+        expect(response.headers.getSetCookie()).toEqual([]);
+      },
+    );
 
     it("reports a missing signing key", async () => {
       vi.stubEnv("BIGUL_SESSION_PRIVATE_KEY", "");
