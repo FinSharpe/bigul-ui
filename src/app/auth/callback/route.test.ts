@@ -8,6 +8,7 @@ import {
   it,
   vi,
 } from "vitest";
+import { decodeJwt } from "jose";
 import { NextRequest } from "next/server";
 import { resetPartnerSessionCache } from "@/lib/auth/bigul";
 import { verifySessionToken } from "@/lib/auth/session";
@@ -146,6 +147,11 @@ describe("GET /auth/callback", () => {
       clientCode: "Y09042341",
     });
     expect(jwt).not.toContain(TOKEN);
+    // Web sign-ins name no app.
+    expect(decodeJwt(jwt)).not.toHaveProperty("plt");
+    expect(
+      setCookies(response).some((cookie) => cookie.startsWith("bigul_app=")),
+    ).toBe(false);
     expectStateCleared(response);
   });
 

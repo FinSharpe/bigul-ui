@@ -379,6 +379,16 @@ describe("GET /auth/mobile", () => {
       expect(appCookieValue(response)).toBe("superapp");
     });
 
+    it("sets the app cookie for an allowed platform with a malformed token", async () => {
+      const response = await mobile(undefined, {
+        "x-bigul-platform": "99",
+        "x-bigul-token": appToken({}),
+      });
+      expectError(response, "missing");
+      expect(appCookieValue(response)).toBe("superapp");
+      expect(fake.fetchMock).not.toHaveBeenCalled();
+    });
+
     it("sets no app cookie for a platform it refused", async () => {
       const response = await mobile(undefined, {
         ...HANDOFF,

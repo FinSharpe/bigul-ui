@@ -22,6 +22,7 @@ import {
   mobileErrorRedirect,
   mobileNotice,
   parseHandoff,
+  parsePlatform,
   type MobileErrorCode,
   type MobileHandoff,
 } from "@/lib/auth/mobile";
@@ -177,10 +178,12 @@ export async function GET(request: NextRequest) {
       reason: error instanceof Error ? error.name : "unknown",
     });
   }
+  // An allowed platform themes even a failed handoff's error page.
+  const platform = parsePlatform(request.headers, platforms);
+  if (platform) app.theme = themeFor(platform);
   const handoff = parseHandoff(request.headers, platforms);
   if (!handoff) return fail("missing", { reason: "malformed_headers" });
   tags.client = logTag(handoff.clientCode);
-  app.theme = themeFor(handoff.platform);
 
   let session;
   try {
@@ -208,7 +211,7 @@ export async function GET(request: NextRequest) {
   const response = NextResponse.redirect(new URL(next, request.url), 303);
   response.cookies.set(sessionCookie(session.token, session.expiresAt));
   response.cookies.set(embeddedCookie());
-  response.cookies.set(appCookie(app.theme));
+  response.cookies.set(appCookie(themeFor(handoff.platform)));
   return noStore(response);
 }
 

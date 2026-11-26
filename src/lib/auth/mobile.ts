@@ -77,16 +77,24 @@ export function appTokenClientCode(token: string): string | null {
   }
 }
 
+/** The platform header, well formed and allowed, or null. */
+export function parsePlatform(
+  headers: Headers,
+  allowedPlatforms: readonly string[],
+): string | null {
+  const platform = headers.get(PLATFORM_HEADER)?.trim();
+  if (!platform || !PLATFORM_PATTERN.test(platform)) return null;
+  return allowedPlatforms.includes(platform) ? platform : null;
+}
+
 /** Both headers, well formed and allowed, or null. */
 export function parseHandoff(
   headers: Headers,
   allowedPlatforms: readonly string[],
 ): MobileHandoff | null {
-  const platform = headers.get(PLATFORM_HEADER)?.trim();
+  const platform = parsePlatform(headers, allowedPlatforms);
   const token = headers.get(TOKEN_HEADER)?.trim();
   if (!platform || !token) return null;
-  if (!PLATFORM_PATTERN.test(platform) || !allowedPlatforms.includes(platform))
-    return null;
   if (
     token.length < TOKEN_MIN ||
     token.length > TOKEN_MAX ||
