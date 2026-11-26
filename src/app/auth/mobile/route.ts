@@ -26,8 +26,10 @@ import {
   type MobileHandoff,
 } from "@/lib/auth/mobile";
 import { safeNextPath } from "@/lib/auth/next-path";
+import { themeFor, type AppTheme } from "@/lib/platform";
 import { noStore } from "@/lib/auth/responses";
 import {
+  appCookie,
   embeddedCookie,
   expiredSessionCookie,
   mintSession,
@@ -85,7 +87,7 @@ async function signIn(
   if (clientCode !== handoff.clientCode)
     throw new ClientMismatchError(logTag(clientCode));
   await verifyBigulLogin({ userid: clientCode, token: accessToken });
-  return mintSession(clientCode);
+  return mintSession(clientCode, { platform: handoff.platform });
 }
 
 function errorCode(error: unknown): MobileErrorCode {
@@ -146,6 +148,8 @@ export async function GET(request: NextRequest) {
   const existing = await readSession(request);
   // Filled in once the headers are read; identifies attempts without naming the client.
   const tags: { client?: string } = {};
+  // Known once the platform is validated; from then on every answer carries it.
+  const app: { theme?: AppTheme } = {};
   const fail = (
     code: MobileErrorCode,
     detail: Record<string, unknown> = {},
@@ -159,6 +163,7 @@ export async function GET(request: NextRequest) {
     const response = mobileErrorRedirect(request, code, next);
     response.cookies.set(expiredSessionCookie());
     response.cookies.set(embeddedCookie());
+    if (app.theme) response.cookies.set(appCookie(app.theme));
     return response;
   };
 
@@ -175,6 +180,7 @@ export async function GET(request: NextRequest) {
   const handoff = parseHandoff(request.headers, platforms);
   if (!handoff) return fail("missing", { reason: "malformed_headers" });
   tags.client = logTag(handoff.clientCode);
+  app.theme = themeFor(handoff.platform);
 
   let session;
   try {
@@ -196,11 +202,13 @@ export async function GET(request: NextRequest) {
 
   console.info("[bigul-auth] mobile sign-in ok", {
     client: tags.client,
+    platform: handoff.platform,
     switched: existing ? existing.clientCode !== handoff.clientCode : false,
   });
   const response = NextResponse.redirect(new URL(next, request.url), 303);
   response.cookies.set(sessionCookie(session.token, session.expiresAt));
   response.cookies.set(embeddedCookie());
+  response.cookies.set(appCookie(app.theme));
   return noStore(response);
 }
 
