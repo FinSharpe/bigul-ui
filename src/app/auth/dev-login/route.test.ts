@@ -95,10 +95,11 @@ describe("GET /auth/dev-login", () => {
         .getSetCookie()
         .find((value) => value.startsWith("bigul_app="));
 
-    it("adds no plt claim and no app cookie without a platform", async () => {
+    it("adds no plt claim and expires any app cookie without a platform", async () => {
       const response = await devLogin();
       expect(decodeJwt(sessionJwt(response)).plt).toBeUndefined();
-      expect(appCookie(response)).toBeUndefined();
+      expect(appCookie(response)).toMatch(/^bigul_app=;/);
+      expect(appCookie(response)).toContain("Max-Age=0");
     });
 
     it.each([

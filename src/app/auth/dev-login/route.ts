@@ -3,7 +3,12 @@ import { normalizeClientCode } from "@/lib/auth/client-code";
 import { ConfigError, isDevLoginEnabled } from "@/lib/auth/config";
 import { safeNextPath } from "@/lib/auth/next-path";
 import { loginErrorRedirect, noStore } from "@/lib/auth/responses";
-import { appCookie, mintSession, sessionCookie } from "@/lib/auth/session";
+import {
+  appCookie,
+  expiredAppCookie,
+  mintSession,
+  sessionCookie,
+} from "@/lib/auth/session";
 import { themeFor } from "@/lib/platform";
 
 const PLATFORM_PATTERN = /^\d{1,3}$/;
@@ -34,6 +39,9 @@ export async function GET(request: NextRequest) {
   }
   const response = NextResponse.redirect(new URL(next, request.url), 303);
   response.cookies.set(sessionCookie(session.token, session.expiresAt));
-  if (platform) response.cookies.set(appCookie(themeFor(platform)));
+  // Without a platform this is a web sign-in: no app theme left behind.
+  response.cookies.set(
+    platform ? appCookie(themeFor(platform)) : expiredAppCookie(),
+  );
   return noStore(response);
 }

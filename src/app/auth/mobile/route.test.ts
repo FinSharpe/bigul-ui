@@ -389,6 +389,17 @@ describe("GET /auth/mobile", () => {
       expect(fake.fetchMock).not.toHaveBeenCalled();
     });
 
+    it("sets the app cookie when the signing key is missing", async () => {
+      vi.stubEnv("BIGUL_SESSION_PRIVATE_KEY", "");
+      const response = await mobile(undefined, {
+        ...HANDOFF,
+        "x-bigul-platform": "99",
+      });
+      expectError(response, "config");
+      expect(appCookieValue(response)).toBe("superapp");
+      expect(fake.fetchMock).not.toHaveBeenCalled();
+    });
+
     it("sets no app cookie for a platform it refused", async () => {
       const response = await mobile(undefined, {
         ...HANDOFF,

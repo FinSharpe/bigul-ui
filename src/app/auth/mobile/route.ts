@@ -171,6 +171,10 @@ export async function GET(request: NextRequest) {
   let platforms: string[];
   try {
     platforms = getMobilePlatforms();
+    // An allowed platform themes even a failed handoff's error page, a
+    // misconfigured signing key included.
+    const platform = parsePlatform(request.headers, platforms);
+    if (platform) app.theme = themeFor(platform);
     // Check our own config before spending the client's token.
     getSessionConfig();
   } catch (error) {
@@ -178,9 +182,6 @@ export async function GET(request: NextRequest) {
       reason: error instanceof Error ? error.name : "unknown",
     });
   }
-  // An allowed platform themes even a failed handoff's error page.
-  const platform = parsePlatform(request.headers, platforms);
-  if (platform) app.theme = themeFor(platform);
   const handoff = parseHandoff(request.headers, platforms);
   if (!handoff) return fail("missing", { reason: "malformed_headers" });
   tags.client = logTag(handoff.clientCode);

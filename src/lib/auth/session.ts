@@ -52,6 +52,8 @@ export function nextSessionExpiry(now: Date | number = Date.now()): Date {
   return expiry;
 }
 
+const PLATFORM_PATTERN = /^\d{1,3}$/;
+
 export type MintOptions = {
   /** The app's X-Bigul-Platform code; mobile handoffs only. */
   platform?: string;
@@ -68,6 +70,8 @@ export async function mintSession(
 ): Promise<{ token: string; expiresAt: Date }> {
   const sub = normalizeClientCode(clientCode);
   if (!sub) throw new Error("Invalid client code");
+  if (platform !== undefined && !PLATFORM_PATTERN.test(platform))
+    throw new Error("Invalid platform");
   const { privateKey, kid, issuer, audience } = getSessionConfig();
   const nowMs = toMs(now);
   const expiresAt = nextSessionExpiry(nowMs);
@@ -186,6 +190,11 @@ export async function isEmbedded(): Promise<boolean> {
 // Same life as the embedded marker; renewed on every handoff.
 export function appCookie(theme: AppTheme) {
   return { ...embeddedCookie(), name: appCookieName(), value: theme };
+}
+
+// Same attributes as the live cookie, as __Host- requires.
+export function expiredAppCookie() {
+  return { ...appCookie("bigul"), value: "", maxAge: 0, expires: new Date(0) };
 }
 
 /** The app theme a request carries (route handlers). */

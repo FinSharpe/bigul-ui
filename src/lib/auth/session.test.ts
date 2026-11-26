@@ -122,6 +122,15 @@ describe("mintSession", () => {
     );
   });
 
+  it.each(["", "1000", "9a", " 99", "99\n"])(
+    "refuses the malformed platform %j",
+    async (platform) => {
+      await expect(mintSession("Y1", { platform })).rejects.toThrow(
+        "Invalid platform",
+      );
+    },
+  );
+
   it("uses the configured issuer and audience", async () => {
     vi.stubEnv("BIGUL_SESSION_ISSUER", "ui-staging");
     vi.stubEnv("BIGUL_SESSION_AUDIENCE", "backend-staging");
